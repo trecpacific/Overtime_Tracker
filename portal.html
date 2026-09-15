@@ -1,0 +1,1516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Petro Overtime Management Portal</title>
+    <!-- Firebase SDKs (Compat Version) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning-bg: #fef3c7;
+            --warning-text: #b45309;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+            --border-color: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        header {
+            background-color: #ffffff;
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.75rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        header h1 { margin: 0; font-size: 1.05rem; font-weight: 700; color: #0f172a; }
+
+        .nav-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        @media(min-width: 768px) {
+            .nav-controls { width: auto; }
+            header { padding: 1rem 1.5rem; }
+            header h1 { font-size: 1.25rem; }
+        }
+
+        .tab-btn {
+            background: #f1f5f9;
+            border: 1px solid var(--border-color);
+            color: #475569;
+            padding: 0.45rem 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s;
+            flex: 1;
+            justify-content: center;
+            text-align: center;
+        }
+
+        @media(min-width: 768px) {
+            .tab-btn { flex: unset; font-size: 0.85rem; padding: 0.45rem 0.85rem; }
+        }
+
+        .tab-btn.active, .tab-btn:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .tab-btn.external-plot {
+            background: linear-gradient(135deg, #0d9488, #0f766e);
+            color: white;
+            border: 1px solid #0d9488;
+            box-shadow: 0 2px 4px rgba(13, 148, 136, 0.2);
+        }
+        .tab-btn.external-plot:hover {
+            background: linear-gradient(135deg, #0f766e, #115e59);
+            border-color: #0f766e;
+        }
+
+        .home-btn, .icon-btn {
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            color: #334155;
+            padding: 0.45rem 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: background 0.2s;
+        }
+        .home-btn:hover, .icon-btn:hover { background: #f1f5f9; }
+
+        .container { max-width: 1400px; margin: 1rem auto; padding: 0 0.5rem; box-sizing: border-box; }
+        @media(min-width: 768px) {
+            .container { margin: 2rem auto; padding: 0 1.5rem; }
+        }
+
+        .panel {
+            display: none;
+            background: var(--card-bg);
+            padding: 1.25rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+            border: 1px solid var(--border-color);
+            box-sizing: border-box;
+        }
+        @media(min-width: 768px) {
+            .panel { padding: 2.5rem; border-radius: 16px; }
+        }
+
+        .panel.active { display: block; }
+
+        h2, h3 { color: #0f172a; margin-top: 0; font-weight: 600; font-size: 1.15rem; }
+        @media(min-width: 768px) {
+            h2, h3 { font-size: 1.25rem; }
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+        @media(min-width: 900px) {
+            .grid-2 { grid-template-columns: 1fr 1fr; gap: 2.5rem; }
+        }
+
+        .form-group { margin-bottom: 1.15rem; }
+
+        label { display: block; margin-bottom: 0.4rem; font-weight: 500; font-size: 0.85rem; color: #475569; }
+
+        select, input[type="text"], input[type="number"], input[type="date"], input[type="month"], input[type="password"] {
+            width: 100%;
+            padding: 0.7rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            box-sizing: border-box;
+            background: #ffffff;
+            color: #1e293b;
+            outline: none;
+            -webkit-appearance: none;
+            transition: border-color 0.2s;
+        }
+        select:focus, input:focus { border-color: var(--primary); }
+
+        .warning-banner {
+            background-color: var(--warning-bg);
+            color: var(--warning-text);
+            padding: 0.85rem;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            margin-bottom: 1.15rem;
+            border: 1px solid #fcd34d;
+            line-height: 1.5;
+        }
+
+        .sig-container {
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            background: #fafafa;
+            cursor: crosshair;
+            position: relative;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        canvas { display: block; touch-action: none; width: 100%; height: 110px; }
+
+        button.btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        @media(min-width: 768px) {
+            button.btn { width: auto; }
+        }
+        button.btn:hover { background-color: var(--primary-dark); }
+        .btn-danger { background-color: var(--danger); }
+        .btn-danger:hover { background-color: #dc2626; }
+        .btn-secondary { background-color: #64748b; font-size: 0.8rem; padding: 0.3rem 0.6rem; color: white; border: none; border-radius: 6px; cursor: pointer;}
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+        @media(min-width: 768px) {
+            .metrics-grid { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        }
+        .metric-card {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+            border-left: 4px solid var(--primary);
+            box-sizing: border-box;
+        }
+        .metric-card h4 { margin: 0 0 4px 0; font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .metric-card .value { font-size: 1.25rem; font-weight: 700; color: #0f172a; }
+
+        /* Scrollable table container for mobile friendliness */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-top: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+
+        th { background-color: #f8fafc; font-weight: 600; color: #475569; }
+
+        .badge {
+            padding: 0.2rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .badge-pending { background-color: #fef3c7; color: #d97706; }
+        .badge-approved { background-color: #d1fae5; color: #059669; }
+        .badge-rejected { background-color: #fee2e2; color: #dc2626; }
+
+        .action-icon-group {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .action-icon {
+            background: #f1f5f9;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .action-icon.approve:hover { background: #d1fae5; border-color: #10b981; }
+        .action-icon.reject:hover { background: #fee2e2; border-color: #ef4444; }
+        .action-icon.edit:hover { background: #e0f2fe; border-color: #0284c7; }
+        .action-icon.delete:hover { background: #e2e8f0; border-color: #64748b; }
+        .action-icon.email:hover { background: #f0fdf4; border-color: #22c55e; }
+
+        #modal-overlay, #settings-modal, #sup-name-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
+            display: none; justify-content: center; align-items: center; z-index: 1000;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+        .modal-card {
+            background: white; padding: 1.5rem; border-radius: 16px; width: 100%; max-width: 420px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+        }
+        .modal-card.large { max-width: 680px; max-height: 85vh; overflow-y: auto; }
+    </style>
+</head>
+<body>
+
+    <!-- PASSWORD MODAL FOR SUPERVISOR TAB -->
+    <div id="modal-overlay">
+        <div class="modal-card" style="text-align: center;">
+            <h3 style="margin-top:0;">Supervisor Access Security</h3>
+            <p style="font-size: 0.85rem; color: #64748b;">Enter password to access supervisor portal.</p>
+            <input type="password" id="password-input" value="" placeholder="Enter password" style="margin-bottom: 1.25rem; text-align: center; font-size: 1.1rem; letter-spacing: 2px;">
+            <div style="display: flex; gap: 10px;">
+                <button class="btn" style="flex: 1;" onclick="verifyPassword()">Unlock</button>
+                <button class="btn btn-secondary" style="flex: 1; background: #e2e8f0; color: #334155;" onclick="closePasswordModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SELECT SUPERVISOR NAME MODAL -->
+    <div id="sup-name-modal">
+        <div class="modal-card" style="text-align: center;">
+            <h3 style="margin-top:0;">Select Your Name</h3>
+            <p style="font-size: 0.85rem; color: #64748b;">Please select your name for approval audit history logging.</p>
+            <select id="active-supervisor-name" style="margin-bottom: 1.25rem; text-align: center; font-size: 1rem;">
+                <option value="Hazel M. (151938)">Hazel M. (151938)</option>
+                <option value="Frank M. (60219)">Frank M. (60219)</option>
+                <option value="Kyle B. (231286)">Kyle B. (231286)</option>
+                <option value="Edwin C. (90174)">Edwin C. (90174)</option>
+                <option value="Seth R.">Seth R.</option>
+                <option value="Arvy G.">Arvy G.</option>
+                <option value="Glenn F.">Glenn F.</option>
+            </select>
+            <button class="btn" style="width: 100%;" onclick="confirmSupervisorName()">Continue to Dashboard</button>
+        </div>
+    </div>
+
+    <!-- SETTINGS MODAL FOR SUPERVISOR -->
+    <div id="settings-modal">
+        <div class="modal-card large">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                <h3 style="margin:0; font-size: 1.1rem;">⚙️ Roster Management</h3>
+                <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size:0.8rem; width: auto;" onclick="toggleSettingsModal()">Close</button>
+            </div>
+
+            <div style="background: #f8fafc; padding: 1rem; border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 1.25rem;">
+                <h4 style="margin-top:0; margin-bottom:0.5rem; color:#334155; font-size: 0.9rem;">Add New Agent</h4>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+                    <input type="text" id="new-agent-name" placeholder="Name (e.g. John D.)" style="flex: 2; min-width: 130px;">
+                    <input type="text" id="new-agent-emp" placeholder="Emp No. (e.g. 12345)" style="flex: 1; min-width: 100px;">
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <select id="new-agent-lead" style="flex: 1; min-width: 120px;">
+                        <option value="Edwin C.">Edwin C.</option>
+                        <option value="Frank M.">Frank M.</option>
+                        <option value="Hazel M.">Hazel M.</option>
+                        <option value="Kyle B.">Kyle B.</option>
+                        <option value="Seth R.">Seth R.</option>
+                        <option value="Arvy G.">Arvy G.</option>
+                        <option value="Glenn F.">Glenn F.</option>
+                    </select>
+                    <button class="btn" style="width: auto;" onclick="addAgent()">Add Agent</button>
+                </div>
+            </div>
+
+            <h4 style="margin-bottom: 0.5rem; color:#334155; font-size: 0.9rem;">Existing Roster List</h4>
+            <div class="table-responsive" style="max-height: 250px;">
+                <table style="margin:0;">
+                    <thead>
+                        <tr>
+                            <th>Agent Name</th>
+                            <th>Emp No.</th>
+                            <th>Team Lead</th>
+                            <th style="text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="roster-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <header>
+        <div class="header-title">
+            <span style="font-size: 1.3rem;">🛡️</span>
+            <h1>Petro Overtime Portal</h1>
+        </div>
+        <div class="nav-controls">
+            <a href="index.html" class="home-btn">🏠 Home</a>
+            <button class="tab-btn active" id="btn-agent" onclick="switchTab('agent')">👤 Agent Portal</button>
+            <button class="tab-btn" id="btn-supervisor" onclick="requestSupervisorAccess()">👔 Supervisor</button>
+            <a href="https://trecglobal-my.sharepoint.com/:x:/p/kyle_sioson/IQCs1WjPxF4WQ7CpI5kJ0JpAASv0b5X2UFsUdp8Xcdt8rwQ?e=2URLVe" target="_blank" class="tab-btn external-plot">📈 Public OT Viewing ↗</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- ================= AGENT PANEL ================= -->
+        <div id="panel-agent" class="panel active">
+            <div class="grid-2">
+                <div>
+                    <h2>Book Overtime Slot</h2>
+                    
+                    <div class="warning-banner">
+                        ⚠️ <b>Policy Notice (3.4d):</b> Refusing or failing to report for overtime work after having been scheduled and informed about it and any approved Overtime request that is subsequently cancelled will automatically serve as a <b>VR (Violation Report)</b> 
+                    </div>
+
+                    <form id="ot-form" onsubmit="handleAgentSubmit(event)">
+                        <div class="form-group">
+                            <label for="agent-name">Select Your Name</label>
+                            <select id="agent-name" required onchange="renderAgentTracker()">
+                                <option value="">-- Choose Name --</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="ot-date">Select Date</label>
+                            <input type="date" id="ot-date" required value="2026-09-06">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="ot-start-time">Starting Time Slot</label>
+                            <select id="ot-start-time" required onchange="updateComputedRange()">
+                                <option value="12am–1am">12am–1am</option>
+                                <option value="1am–2am">1am–2am</option>
+                                <option value="2am–3am">2am–3am</option>
+                                <option value="3am–4am">3am–4am</option>
+                                <option value="4am–5am">4am–5am</option>
+                                <option value="5am–6am">5am–6am</option>
+                                <option value="6am–7am">6am–7am</option>
+                                <option value="7am–8am">7am–8am</option>
+                                <option value="8am–9am">8am–9am</option>
+                                <option value="9am–10am">9am–10am</option>
+                                <option value="10am–11am">10am–11am</option>
+                                <option value="11am–12pm">11am–12pm</option>
+                                <option value="12pm–1pm">12pm–1pm</option>
+                                <option value="1pm–2pm">1pm–2pm</option>
+                                <option value="2pm–3pm">2pm–3pm</option>
+                                <option value="3pm–4pm">3pm–4pm</option>
+                                <option value="4pm–5pm">4pm–5pm</option>
+                                <option value="5pm–6pm">5pm–6pm</option>
+                                <option value="6pm–7pm">6pm–7pm</option>
+                                <option value="7pm–8pm">7pm–8pm</option>
+                                <option value="8pm–9pm">8pm–9pm</option>
+                                <option value="9pm–10pm">9pm–10pm</option>
+                                <option value="10pm–11pm">10pm–11pm</option>
+                                <option value="11pm–12am">11pm–12am</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="ot-duration">Duration (Hours)</label>
+                            <input type="number" id="ot-duration" min="1" max="12" value="1" oninput="updateComputedRange()" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Computed Total Overtime Range</label>
+                            <input type="text" id="computed-range-display" readonly style="background:#f8fafc; font-weight:bold; color:var(--primary);" value="12am–1am">
+                        </div>
+
+                        <div class="form-group">
+                            <label>E-Signature (Draw Below)</label>
+                            <div class="sig-container">
+                                <canvas id="sig-canvas" width="500" height="120"></canvas>
+                            </div>
+                            <div style="margin-top: 6px; display: flex; justify-content: space-between;">
+                                <small style="color: #64748b;">Sign using mouse or touch</small>
+                                <button type="button" class="btn-secondary" onclick="clearSignature()">Clear</button>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn" style="width: 100%;">Submit Overtime Request</button>
+                    </form>
+                </div>
+
+                <div>
+                    <h2>Your Committed OT Tracker</h2>
+                    <div class="form-group" style="display: flex; gap: 8px; margin-top: 1rem; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 130px;">
+                            <label for="filter-type">Filter By</label>
+                            <select id="filter-type" onchange="renderAgentTracker()">
+                                <option value="all">All Submissions</option>
+                                <option value="month">This Month</option>
+                                <option value="week">This Week</option>
+                                <option value="day">Specific Date</option>
+                            </select>
+                        </div>
+                        <div style="flex: 1; min-width: 130px;" id="date-filter-box">
+                            <label for="filter-date">Select Date</label>
+                            <input type="date" id="filter-date" onchange="renderAgentTracker()" value="2026-09-06">
+                        </div>
+                    </div>
+
+                    <div class="table-responsive" style="max-height: 480px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date & Slot</th>
+                                    <th>Status & Lead Note</th>
+                                </tr>
+                            </thead>
+                            <tbody id="agent-tracker-list">
+                                <tr><td colspan="2" style="text-align:center; color:#64748b;">Please select your name on the left</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= SUPERVISOR PANEL ================= -->
+        <div id="panel-supervisor" class="panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h2 style="margin:0 0 4px 0; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        Supervisor Dashboard 
+                        <span id="active-sup-badge" style="font-size:0.75rem; background:#e0f2fe; color:#0369a1; padding:3px 10px; border-radius:12px; font-weight:500;"></span>
+                    </h2>
+                    <p style="margin:0; color:#64748b; font-size:0.85rem;">Review and manage agent overtime requests cleanly.</p>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <button class="btn" style="padding: 0.45rem 0.9rem; background: #0284c7; font-size: 0.82rem; width: auto;" onclick="sendBulkOutlookEmail()">📧 Bulk Commit</button>
+                    <button class="btn" style="padding: 0.45rem 0.9rem; background: #10b981; font-size: 0.82rem; width: auto;" onclick="exportToExcel()">📥 Export Excel</button>
+                    <button class="icon-btn" style="padding: 0.45rem 0.9rem; font-size: 0.82rem;" onclick="toggleSettingsModal()">⚙️ Roster</button>
+                </div>
+            </div>
+
+            <!-- REAL-TIME METRIC CARDS PER LEAD -->
+            <div class="metrics-grid" id="metrics-grid-container">
+                <!-- Dynamically populated -->
+            </div>
+
+            <div class="form-group" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; align-items: center; margin-bottom: 1.25rem; background: #f8fafc; padding: 1rem; border-radius: 12px; border: 1px solid var(--border-color);">
+                <div>
+                    <label for="filter-lead">Team Lead</label>
+                    <select id="filter-lead" onchange="updateAgentFilterDropdown(); renderSupervisorDashboard();">
+                        <option value="">-- All Leads --</option>
+                        <option value="Edwin C.">Edwin C.</option>
+                        <option value="Frank M.">Frank M.</option>
+                        <option value="Hazel M.">Hazel M.</option>
+                        <option value="Kyle B.">Kyle B.</option>
+                        <option value="Seth R.">Seth R.</option>
+                        <option value="Arvy G.">Arvy G.</option>
+                        <option value="Glenn F.">Glenn F.</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="filter-agent-sup">Agent</label>
+                    <select id="filter-agent-sup" onchange="renderSupervisorDashboard()">
+                        <option value="">-- All Agents --</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="filter-status">Status</label>
+                    <select id="filter-status" onchange="renderSupervisorDashboard()">
+                        <option value="">-- All Status --</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Approved">Approved</option>
+                        <option value="Rejected">Rejected</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="filter-sup-mode">Filter Mode</label>
+                    <select id="filter-sup-mode" onchange="toggleSupFilterMode(); renderSupervisorDashboard();">
+                        <option value="weekly">Weekly (Sun — Sat)</option>
+                        <option value="specific-day">Specific Day</option>
+                        <option value="date-range">Date Range (From - To)</option>
+                    </select>
+                </div>
+                <div id="sup-weekly-box">
+                    <label for="filter-sup-week-select">Select Calendar Week</label>
+                    <select id="filter-sup-week-select" onchange="renderSupervisorDashboard()">
+                        <!-- Dynamically populated weeks -->
+                    </select>
+                </div>
+                <div id="sup-day-box" style="display:none;">
+                    <label for="filter-sup-day">Specific Day</label>
+                    <input type="date" id="filter-sup-day" onchange="renderSupervisorDashboard()" value="">
+                </div>
+                <div id="sup-range-box" style="display:none; grid-column: span 2;">
+                    <label>Date Range (From — To)</label>
+                    <div style="display: flex; gap: 6px;">
+                        <input type="date" id="filter-sup-start" onchange="renderSupervisorDashboard()" style="flex:1;">
+                        <input type="date" id="filter-sup-end" onchange="renderSupervisorDashboard()" style="flex:1;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 30px;"><input type="checkbox" id="select-all-checkbox" onclick="toggleSelectAll(this)"></th>
+                            <th>Agent</th>
+                            <th>Team Lead</th>
+                            <th>Date</th>
+                            <th>Computed OT</th>
+                            <th>Submitted At</th>
+                            <th>E-Signature</th>
+                            <th>Status & Audit History</th>
+                            <th style="text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lead-queue-list"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- OFFICIAL FIREBASE CONFIGURATION (COMPAT SYNTAX) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCIR_fAGgctPZ9LPYZZhE7ueJSzINxCz3Q",
+            authDomain: "overtime-commitment.firebaseapp.com",
+            databaseURL: "https://overtime-commitment-default-rtdb.firebaseio.com",
+            projectId: "overtime-commitment",
+            storageBucket: "overtime-commitment.firebasestorage.app",
+            messagingSenderId: "693472850041",
+            appId: "1:693472850041:web:c10765ee944f977678a4a8",
+            measurementId: "G-Z9RYM51RHY"
+        };
+
+        // Initialize Firebase Compat SDK
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        const timeSlots = ["12am–1am", "1am–2am", "2am–3am", "3am–4am", "4am–5am", "5am–6am", "6am–7am", "7am–8am", "8am–9am", "9am–10am", "10am–11am", "11am–12pm", "12pm–1pm", "1pm–2pm", "2pm–3pm", "3pm–4pm", "4pm–5pm", "5pm–6pm", "6pm–7pm", "7pm–8pm", "8pm–9pm", "9pm–10pm", "10pm–11pm", "11pm–12am"];
+
+        let agents = [
+            { name: "Kimberly T.", emp: "252056", lead: "Edwin C." }, { name: "John D.", emp: "252064", lead: "Edwin C." }, { name: "Harold R.", emp: "241642", lead: "Edwin C." }, { name: "Jeraldyn R.", emp: "231204", lead: "Edwin C." }, { name: "Renard C.", emp: "190342", lead: "Edwin C." }, { name: "Alfredo C.", emp: "252082", lead: "Edwin C." }, { name: "Dean C.", emp: "252052", lead: "Edwin C." }, { name: "Christian Q.", emp: "262168", lead: "Edwin C." }, { name: "Roi L.", emp: "252132", lead: "Edwin C." }, { name: "Remond L.", emp: "220654", lead: "Edwin C." },
+            { name: "Salvador R.", emp: "231208", lead: "Frank M." }, { name: "Jan N.", emp: "251904", lead: "Frank M." }, { name: "Felisha S.", emp: "252092", lead: "Frank M." }, { name: "Justine B.", emp: "252102", lead: "Frank M." }, { name: "Boh D.", emp: "252100", lead: "Frank M." }, { name: "John G.", emp: "251952", lead: "Frank M." }, { name: "Bench M.", emp: "252136", lead: "Frank M." }, { name: "Hazel B.", emp: "262170", lead: "Frank M." }, { name: "Sidrick M.", emp: "251972", lead: "Frank M." }, { name: "Braven O.", emp: "252062", lead: "Frank M." },
+            { name: "Judy T.", emp: "70109", lead: "Hazel M." }, { name: "Gemmalyn S.", emp: "130908", lead: "Hazel M." }, { name: "Glory B.", emp: "210332", lead: "Hazel M." }, { name: "Kristian O.", emp: "162322", lead: "Hazel M." }, { name: "Melvin L.", emp: "162458", lead: "Hazel M." }, { name: "Zachary J.", emp: "190224", lead: "Hazel M." }, { name: "AJ D.", emp: "231496", lead: "Hazel M." }, { name: "Justin C.", emp: "", lead: "Hazel M." }, { name: "Christian M.", emp: "231122", lead: "Hazel M." }, { name: "Raven G.", emp: "241736", lead: "Hazel M." }, { name: "Hazel M.", emp: "151938", lead: "Glenn F." },
+            { name: "Arlenne L.", emp: "252094", lead: "Kyle B." }, { name: "Madel N.", emp: "231206", lead: "Kyle B." }, { name: "Jasmine C.", emp: "252086", lead: "Kyle B." }, { name: "Rachelle R.", emp: "241628", lead: "Kyle B." }, { name: "Lowella A.", emp: "241680", lead: "Kyle B." }, { name: "Daniel A.", emp: "220852", lead: "Kyle B." }, { name: "Joniel O.", emp: "220920", lead: "Kyle B." }, { name: "James Q.", emp: "251982", lead: "Kyle B." }, { name: "Eljul M.", emp: "252076", lead: "Kyle B." }
+        ];
+
+        let requests = [];
+        let currentSupervisorName = "Hazel M. (151938)"; // Default logged-in supervisor
+
+        function cleanNameFormat(nameStr) {
+            if (!nameStr) return "";
+            const nameMap = {
+                "Kimberly Torres": "Kimberly T. (252056)",
+                "John Drew": "John D. (252064)",
+                "Harold Reyes": "Harold R. (241642)",
+                "Jeraldyn Relata": "Jeraldyn R. (231204)",
+                "Renard Christopher Relova": "Renard C. (190342)",
+                "Alfredo III. Ceño": "Alfredo C. (252082)",
+                "Dean Clemente": "Dean C. (252052)",
+                "Christian Luis Quimno": "Christian Q. (262168)",
+                "Roi Chester Lumtao": "Roi L. (252132)",
+                "Remond Licayan": "Remond L. (220654)",
+                "Salvador Rubio Jr": "Salvador R. (231208)",
+                "Jan Neri": "Jan N. (251904)",
+                "Felisha Sy": "Felisha S. (252092)",
+                "Justine Bagalihog": "Justine B. (252102)",
+                "Boh Brian Daclis": "Boh D. (252100)",
+                "John Guzman": "John G. (251952)",
+                "Bench Manuel": "Bench M. (252136)",
+                "Hazel Mae Bongalos": "Hazel B. (262170)",
+                "Sidrick Mondalo": "Sidrick M. (251972)",
+                "Braven Ocampo": "Braven O. (252062)",
+                "Judy Tolentino": "Judy T. (70109)",
+                "Gemmalyn Silvestre": "Gemmalyn S. (130908)",
+                "Glory Barbacena": "Glory B. (210332)",
+                "Kristian Ong": "Kristian O. (162322)",
+                "Melvin Lagrosa": "Melvin L. (162458)",
+                "Zachary Jeremy Payabyab": "Zachary J. (190224)",
+                "AJ Dela Cruz": "AJ D. (231496)",
+                "Justin Lawrence Castro": "Justin C.",
+                "Christian Mark Patdu": "Christian M. (231122)",
+                "Raven Guasis": "Raven G. (241736)",
+                "Arlenne Labagala": "Arlenne L. (252094)",
+                "Madel Negrete": "Madel N. (231206)",
+                "Jasmine Comia": "Jasmine C. (252086)",
+                "Rachelle Rubio": "Rachelle R. (241628)",
+                "Lowella Alacida": "Lowella A. (241680)",
+                "Daniel Arago": "Daniel A. (220852)",
+                "Joniel Obus": "Joniel O. (220920)",
+                "James Querubin": "James Q. (251982)",
+                "Eljul Maligalig": "Eljul M. (252076)",
+                "Edwin Cuesta": "Edwin C.",
+                "Edwin Cuesta (90174)": "Edwin C.",
+                "Frank Molina": "Frank M.",
+                "Frank Molina (60219)": "Frank M.",
+                "Hazel Maneja": "Hazel M. (151938)",
+                "Hazel Maneja (151938)": "Hazel M. (151938)",
+                "Kyle Sioson": "Kyle B.",
+                "Kyle Brandon Sioson": "Kyle B.",
+                "Kyle Brandon Sioson (231286)": "Kyle B.",
+                "Seth Raymundo": "Seth R.",
+                "Arvy Glenn Fegurin": "Arvy G.",
+                "Glenn Fegurin": "Glenn F."
+            };
+            if (nameMap[nameStr]) return nameMap[nameStr];
+
+            let foundAg = agents.find(a => a.name.toLowerCase() === nameStr.toLowerCase() || `${a.name} (${a.emp})`.toLowerCase() === nameStr.toLowerCase());
+            if (foundAg) {
+                return foundAg.emp ? `${foundAg.name} (${foundAg.emp})` : foundAg.name;
+            }
+
+            return nameStr;
+        }
+
+        function cleanLeadFormat(leadStr) {
+            if (!leadStr) return "";
+            if (leadStr.includes("Edwin")) return "Edwin C.";
+            if (leadStr.includes("Frank")) return "Frank M.";
+            if (leadStr.includes("Hazel")) return "Hazel M.";
+            if (leadStr.includes("Kyle")) return "Kyle B.";
+            if (leadStr.includes("Seth")) return "Seth R.";
+            if (leadStr.includes("Arvy")) return "Arvy G.";
+            if (leadStr.includes("Glenn")) return "Glenn F.";
+            return leadStr;
+        }
+
+        // --- REAL-TIME LISTENERS FROM FIREBASE ---
+        db.ref('requests').on('value', (snapshot) => {
+            const data = snapshot.val();
+            requests = data ? Object.values(data).map(r => ({
+                ...r,
+                agent: cleanNameFormat(r.agent),
+                lead: cleanLeadFormat(r.lead),
+                actionBy: cleanNameFormat(r.actionBy)
+            })) : [];
+            populateWeeklyDropdown();
+            renderAgentTracker();
+            if (document.getElementById('panel-supervisor').classList.contains('active')) {
+                renderSupervisorDashboard();
+            }
+        });
+
+        db.ref('agents').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                agents = Object.values(data).map(a => {
+                    let cleanName = a.name.includes('(') ? a.name.split('(')[0].trim() : a.name;
+                    let cleanEmp = a.emp || (a.name.match(/\(([^)]+)\)/) ? a.name.match(/\(([^)]+)\)/)[1] : '');
+                    return {
+                        name: cleanName,
+                        emp: cleanEmp,
+                        lead: cleanLeadFormat(a.lead)
+                    };
+                });
+            } else {
+                db.ref('agents').set(agents);
+            }
+            populateAgentDropdown();
+            updateAgentFilterDropdown();
+            if (document.getElementById('settings-modal').style.display === 'flex') {
+                renderRoster();
+            }
+        });
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                if(!b.classList.contains('external-plot')) b.classList.remove('active');
+            });
+
+            if (tabName === 'agent') {
+                document.getElementById('panel-agent').classList.add('active');
+                document.getElementById('btn-agent').classList.add('active');
+            } else {
+                document.getElementById('panel-supervisor').classList.add('active');
+                document.getElementById('btn-supervisor').classList.add('active');
+                updateAgentFilterDropdown();
+                populateWeeklyDropdown();
+                renderSupervisorDashboard();
+            }
+        }
+
+        function requestSupervisorAccess() {
+            document.getElementById('password-input').value = '';
+            document.getElementById('modal-overlay').style.display = 'flex';
+        }
+        function closePasswordModal() {
+            document.getElementById('password-input').value = '';
+            document.getElementById('modal-overlay').style.display = 'none';
+        }
+        function verifyPassword() {
+            const pwd = document.getElementById('password-input').value;
+            if (pwd === "@Trec123") {
+                document.getElementById('password-input').value = '';
+                closePasswordModal();
+                document.getElementById('sup-name-modal').style.display = 'flex';
+            } else {
+                alert("Incorrect password! Access denied.");
+                document.getElementById('password-input').value = '';
+            }
+        }
+
+        function confirmSupervisorName() {
+            const nameSel = document.getElementById('active-supervisor-name');
+            currentSupervisorName = nameSel.value;
+            document.getElementById('sup-name-modal').style.display = 'none';
+            document.getElementById('active-sup-badge').innerText = `Logged in as: ${currentSupervisorName}`;
+            switchTab('supervisor');
+        }
+
+        function toggleSettingsModal() {
+            const modal = document.getElementById('settings-modal');
+            modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+            if (modal.style.display === 'flex') renderRoster();
+        }
+
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('tab') === 'supervisor') {
+                requestSupervisorAccess();
+            }
+            populateAgentDropdown();
+            updateAgentFilterDropdown();
+            populateWeeklyDropdown();
+            updateComputedRange();
+        }
+
+        function formatAgentDisplay(ag) {
+            return ag.emp ? `${ag.name} (${ag.emp})` : ag.name;
+        }
+
+        function populateAgentDropdown() {
+            const select = document.getElementById('agent-name');
+            const currentVal = select.value;
+            select.innerHTML = '<option value="">-- Choose Name --</option>';
+            agents.sort((a,b) => a.name.localeCompare(b.name)).forEach(ag => {
+                let shortLead = cleanLeadFormat(ag.lead);
+                let displayName = formatAgentDisplay(ag);
+                select.innerHTML += `<option value="${displayName}">${displayName} (${shortLead})</option>`;
+            });
+            select.value = currentVal;
+        }
+
+        function updateAgentFilterDropdown() {
+            const leadFilter = document.getElementById('filter-lead').value;
+            const agentSelect = document.getElementById('filter-agent-sup');
+            const currentAgent = agentSelect.value;
+            agentSelect.innerHTML = '<option value="">-- All Agents --</option>';
+            
+            let filteredAgents = agents;
+            if (leadFilter) {
+                filteredAgents = agents.filter(a => cleanLeadFormat(a.lead) === leadFilter);
+            }
+            filteredAgents.sort((a,b) => a.name.localeCompare(b.name)).forEach(ag => {
+                let displayName = formatAgentDisplay(ag);
+                agentSelect.innerHTML += `<option value="${displayName}">${displayName}</option>`;
+            });
+            agentSelect.value = currentAgent;
+        }
+
+        // Generate Sunday-to-Saturday sequential calendar weeks
+        function populateWeeklyDropdown() {
+            const weekSelect = document.getElementById('filter-sup-week-select');
+            const currentSelection = weekSelect.value;
+            weekSelect.innerHTML = '<option value="">-- All Weeks (Sun-Sat) --</option>';
+
+            let datesSet = new Set();
+            requests.forEach(r => { if(r.date) datesSet.add(r.date); });
+            
+            let minDate, maxDate;
+            if(datesSet.size > 0) {
+                let sortedDates = Array.from(datesSet).sort();
+                minDate = new Date(sortedDates[0] + 'T00:00:00');
+                maxDate = new Date(sortedDates[sortedDates.length - 1] + 'T00:00:00');
+            } else {
+                minDate = new Date('2026-08-01');
+                maxDate = new Date('2026-12-31');
+            }
+
+            minDate.setDate(minDate.getDate() - minDate.getDay());
+            maxDate.setDate(maxDate.getDate() + (6 - maxDate.getDay()));
+
+            let currSun = new Date(minDate);
+            let weekCounter = 1;
+
+            const formatDateStr = (d) => {
+                const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                return `${months[d.getMonth()]} ${d.getDate()}`;
+            };
+
+            const formatValStr = (d) => {
+                let y = d.getFullYear();
+                let m = String(d.getMonth() + 1).padStart(2, '0');
+                let day = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
+            };
+
+            while(currSun <= maxDate) {
+                let currSat = new Date(currSun);
+                currSat.setDate(currSun.getDate() + 6);
+
+                let valString = `${formatValStr(currSun)}_${formatValStr(currSat)}`;
+                let labelString = `Week ${weekCounter}: ${formatDateStr(currSun)} – ${formatDateStr(currSat)}`;
+
+                weekSelect.innerHTML += `<option value="${valString}">${labelString}</option>`;
+
+                currSun.setDate(currSun.getDate() + 7);
+                weekCounter++;
+            }
+
+            weekSelect.value = currentSelection;
+        }
+
+        function toggleSupFilterMode() {
+            const mode = document.getElementById('filter-sup-mode').value;
+            const weeklyBox = document.getElementById('sup-weekly-box');
+            const dayBox = document.getElementById('sup-day-box');
+            const rangeBox = document.getElementById('sup-range-box');
+
+            if (mode === 'specific-day') {
+                weeklyBox.style.display = 'none';
+                dayBox.style.display = 'block';
+                rangeBox.style.display = 'none';
+            } else if (mode === 'date-range') {
+                weeklyBox.style.display = 'none';
+                dayBox.style.display = 'none';
+                rangeBox.style.display = 'block';
+            } else {
+                weeklyBox.style.display = 'block';
+                dayBox.style.display = 'none';
+                rangeBox.style.display = 'none';
+            }
+        }
+
+        // --- ACCURATE CANVAS POINTER MAPPING ---
+        const canvas = document.getElementById('sig-canvas');
+        const ctx = canvas.getContext('2d');
+        let painting = false;
+
+        function getMousePos(canvas, evt) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const clientX = evt.clientX || (evt.touches && evt.touches[0].clientX);
+            const clientY = evt.clientY || (evt.touches && evt.touches[0].clientY);
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+
+        function startPosition(e) {
+            e.preventDefault();
+            painting = true;
+            const pos = getMousePos(canvas, e);
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+        }
+
+        function endPosition(e) {
+            e.preventDefault();
+            painting = false;
+        }
+
+        function draw(e) {
+            if (!painting) return;
+            e.preventDefault();
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#0f172a';
+            const pos = getMousePos(canvas, e);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+        }
+
+        canvas.addEventListener('mousedown', startPosition);
+        canvas.addEventListener('mouseup', endPosition);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('touchstart', startPosition, { passive: false });
+        canvas.addEventListener('touchend', endPosition, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+
+        function clearSignature() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function updateComputedRange() {
+            const startSlot = document.getElementById('ot-start-time').value;
+            const duration = parseInt(document.getElementById('ot-duration').value) || 1;
+            const startHourStr = startSlot.split('–')[0];
+            const index = timeSlots.findIndex(s => s.startsWith(startHourStr));
+            
+            if (index !== -1) {
+                let endIndex = (index + duration) % 24;
+                let endHourStr = timeSlots[endIndex].split('–')[0];
+                document.getElementById('computed-range-display').value = `${startHourStr}–${endHourStr}`;
+            }
+        }
+
+        function handleAgentSubmit(e) {
+            e.preventDefault();
+            const agentName = document.getElementById('agent-name').value;
+            const dateStr = document.getElementById('ot-date').value;
+            const startSlot = document.getElementById('ot-start-time').value;
+            const duration = parseInt(document.getElementById('ot-duration').value);
+            const computedSlot = document.getElementById('computed-range-display').value;
+            const signatureData = canvas.toDataURL();
+
+            const agentObj = agents.find(a => formatAgentDisplay(a) === agentName);
+            const lead = agentObj ? cleanLeadFormat(agentObj.lead) : "Unassigned";
+            const startIdx = timeSlots.findIndex(s => s.startsWith(startSlot.split('–')[0]));
+            const reqId = Date.now();
+
+            const now = new Date();
+            const timestampStr = now.toLocaleDateString() + ', ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            const newReq = {
+                id: reqId,
+                agent: agentName,
+                lead: lead,
+                date: dateStr,
+                startIdx,
+                duration,
+                slot: computedSlot,
+                signatureData,
+                status: "Pending",
+                actionBy: "",
+                note: "",
+                submittedAt: timestampStr
+            };
+
+            db.ref('requests/' + reqId).set(newReq).then(() => {
+                document.getElementById('ot-form').reset();
+                document.getElementById('ot-duration').value = "1";
+                clearSignature();
+                updateComputedRange();
+                alert("Overtime request submitted successfully!");
+                renderAgentTracker();
+            });
+        }
+
+        function supervisorDeleteRequest(id) {
+            if (confirm("Are you sure you want to delete this overtime request?")) {
+                db.ref('requests/' + id).remove().then(() => {
+                    renderSupervisorDashboard();
+                });
+            }
+        }
+
+        function renderAgentTracker() {
+            const agentName = document.getElementById('agent-name').value;
+            const filterType = document.getElementById('filter-type').value;
+            const filterDate = document.getElementById('filter-date').value;
+            const container = document.getElementById('agent-tracker-list');
+            container.innerHTML = '';
+
+            if (!agentName) {
+                container.innerHTML = `<tr><td colspan="2" style="text-align:center; color:#64748b;">Please select your name on the left</td></tr>`;
+                return;
+            }
+
+            let agentReqs = requests.filter(r => r.agent === agentName);
+
+            if (filterType === 'day' && filterDate) {
+                agentReqs = agentReqs.filter(r => r.date === filterDate);
+            } else if (filterType === 'month' && filterDate) {
+                const targetMonth = filterDate.substring(0, 7);
+                agentReqs = agentReqs.filter(r => r.date && r.date.startsWith(targetMonth));
+            }
+
+            if (agentReqs.length === 0) {
+                container.innerHTML = `<tr><td colspan="2" style="text-align:center; color:#64748b;">No submissions match filter</td></tr>`;
+                return;
+            }
+
+            agentReqs.forEach(r => {
+                let badgeClass = r.status === 'Approved' ? 'badge-approved' : (r.status === 'Rejected' ? 'badge-rejected' : 'badge-pending');
+                let auditText = r.actionBy ? `<br><small style="color:#0284c7;">Processed by: ${r.actionBy}</small>` : '';
+                container.innerHTML += `
+                    <tr>
+                        <td><b>${r.slot}</b> (${r.duration} hrs)<br><small style="color:#64748b;">${r.date}</small></td>
+                        <td>
+                            <span class="badge ${badgeClass}">${r.status}</span>
+                            ${auditText}
+                            ${r.note ? `<br><small style="color:#475569; margin-top:4px; display:block;"><b>Lead Note:</b> ${r.note}</small>` : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function addAgent() {
+            const name = document.getElementById('new-agent-name').value.trim();
+            const emp = document.getElementById('new-agent-emp').value.trim();
+            const lead = cleanLeadFormat(document.getElementById('new-agent-lead').value);
+            
+            if (!name) { alert("Please enter a valid agent name."); return; }
+            if (agents.some(a => a.name.toLowerCase() === name.toLowerCase())) { alert("Agent already exists."); return; }
+            
+            agents.push({ name, emp, lead });
+            db.ref('agents').set(agents).then(() => {
+                document.getElementById('new-agent-name').value = '';
+                document.getElementById('new-agent-emp').value = '';
+                renderRoster();
+                alert("Agent added successfully!");
+            });
+        }
+
+        function deleteAgent(name) {
+            if (confirm(`Are you sure you want to delete ${name}?`)) {
+                agents = agents.filter(a => a.name !== name);
+                db.ref('agents').set(agents).then(() => {
+                    renderRoster();
+                });
+            }
+        }
+
+        function updateAgentEmp(name, newEmp) {
+            const ag = agents.find(a => a.name === name);
+            if (ag) {
+                ag.emp = newEmp.trim();
+                db.ref('agents').set(agents);
+            }
+        }
+
+        function updateAgentLead(name, newLead) {
+            const cleanedLead = cleanLeadFormat(newLead);
+            const ag = agents.find(a => a.name === name);
+            if (ag) {
+                ag.lead = cleanedLead;
+                db.ref('agents').set(agents);
+                requests.forEach(r => { 
+                    if (r.agent.startsWith(name)) {
+                        r.lead = cleanedLead;
+                        db.ref('requests/' + r.id).update({ lead: cleanedLead });
+                    }
+                });
+                renderSupervisorDashboard();
+            }
+        }
+
+        function renderRoster() {
+            const tbody = document.getElementById('roster-tbody');
+            tbody.innerHTML = '';
+            agents.sort((a,b) => a.name.localeCompare(b.name)).forEach(ag => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><b>${ag.name}</b></td>
+                        <td>
+                            <input type="text" value="${ag.emp || ''}" onchange="updateAgentEmp('${ag.name}', this.value)" style="padding: 4px; font-size:0.8rem; width: 90px;" placeholder="Emp No.">
+                        </td>
+                        <td>
+                            <select onchange="updateAgentLead('${ag.name}', this.value)" style="padding: 4px; font-size:0.8rem;">
+                                <option value="Edwin C." ${cleanLeadFormat(ag.lead)==='Edwin C.'?'selected':''}>Edwin C.</option>
+                                <option value="Frank M." ${cleanLeadFormat(ag.lead)==='Frank M.'?'selected':''}>Frank M.</option>
+                                <option value="Hazel M." ${cleanLeadFormat(ag.lead)==='Hazel M.'?'selected':''}>Hazel M.</option>
+                                <option value="Kyle B." ${cleanLeadFormat(ag.lead)==='Kyle B.'?'selected':''}>Kyle B.</option>
+                                <option value="Seth R." ${cleanLeadFormat(ag.lead)==='Seth R.'?'selected':''}>Seth R.</option>
+                                <option value="Arvy G." ${cleanLeadFormat(ag.lead)==='Arvy G.'?'selected':''}>Arvy G.</option>
+                                <option value="Glenn F." ${cleanLeadFormat(ag.lead)==='Glenn F.'?'selected':''}>Glenn F.</option>
+                            </select>
+                        </td>
+                        <td style="text-align: right;"><button class="btn btn-danger" style="padding: 0.2rem 0.5rem; font-size:0.75rem; width: auto;" onclick="deleteAgent('${ag.name}')">Delete</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        function updateLeadAction(id, newStatus) {
+            const noteInput = document.getElementById(`note_${id}`);
+            const noteVal = noteInput ? noteInput.value : "";
+            db.ref('requests/' + id).update({
+                status: newStatus,
+                actionBy: currentSupervisorName,
+                note: noteVal
+            }).then(() => {
+                renderSupervisorDashboard();
+            });
+        }
+
+        function enableEditRequest(id) {
+            const slotDisplaySpan = document.getElementById(`slot_display_${id}`);
+            const editBtn = document.getElementById(`edit_btn_${id}`);
+            const req = requests.find(r => r.id === id);
+            if (!req) return;
+
+            slotDisplaySpan.innerHTML = `
+                <div style="display: flex; gap: 4px; align-items: center;">
+                    <select id="edit_start_${id}" style="padding: 2px; font-size: 0.8rem; width: 90px;"></select>
+                    <span>to</span>
+                    <select id="edit_end_${id}" style="padding: 2px; font-size: 0.8rem; width: 90px;"></select>
+                    <button class="btn-secondary" style="padding: 2px 6px; background: #10b981;" onclick="saveEditRequest(${id})">Save</button>
+                </div>
+            `;
+            editBtn.style.display = 'none';
+
+            const startSel = document.getElementById(`edit_start_${id}`);
+            const endSel = document.getElementById(`edit_end_${id}`);
+
+            timeSlots.forEach(slot => {
+                let startHour = slot.split('–')[0];
+                startSel.innerHTML += `<option value="${startHour}">${startHour}</option>`;
+                endSel.innerHTML += `<option value="${slot.split('–')[1]}">${slot.split('–')[1]}</option>`;
+            });
+
+            if(req.slot && req.slot.includes('–')) {
+                let parts = req.slot.split('–');
+                startSel.value = parts[0];
+                endSel.value = parts[1];
+            }
+        }
+
+        function saveEditRequest(id) {
+            const startSel = document.getElementById(`edit_start_${id}`);
+            const endSel = document.getElementById(`edit_end_${id}`);
+            if(!startSel || !endSel) return;
+
+            const startVal = startSel.value;
+            const endVal = endSel.value;
+
+            let startIndex = timeSlots.findIndex(s => s.startsWith(startVal));
+            let endIndex = timeSlots.findIndex(s => s.startsWith(endVal));
+
+            let computedDuration = 1;
+            if(startIndex !== -1 && endIndex !== -1) {
+                computedDuration = endIndex > startIndex ? (endIndex - startIndex) : (24 - startIndex + endIndex);
+            }
+
+            const newSlotStr = `${startVal}–${endVal}`;
+
+            db.ref('requests/' + id).update({
+                slot: newSlotStr,
+                duration: computedDuration
+            }).then(() => {
+                renderSupervisorDashboard();
+            });
+        }
+
+        function sendOutlookEmail(id) {
+            const req = requests.find(r => r.id === id);
+            if (!req) return;
+
+            const subject = encodeURIComponent(`Overtime Confirmation - ${req.agent} (${req.date})`);
+            const body = encodeURIComponent(`Hi ${req.agent},\n\nYour Overtime request for ${req.slot} on ${req.date} has been ${req.status} by ${req.actionBy || currentSupervisorName}.\nTeam Lead Note: ${req.note || 'None'}\n\nSTRICT COMPANY POLICY:\nNo cancellation of Overtime is allowed unless there is a valid emergency.\n\nBest regards,\nPetro Operations Management`);
+
+            window.location.href = `mailto:agent@company.com?subject=${subject}&body=${body}`;
+        }
+
+        function toggleSelectAll(master) {
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            checkboxes.forEach(cb => cb.checked = master.checked);
+        }
+
+        function sendBulkOutlookEmail() {
+            const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+            if (selectedCheckboxes.length === 0) {
+                alert("Please select at least one agent submission using the checkboxes.");
+                return;
+            }
+
+            let summaryText = "Multiple Overtime Commit Summary:\n\n";
+            selectedCheckboxes.forEach(cb => {
+                const reqId = parseInt(cb.value);
+                const req = requests.find(r => r.id === reqId);
+                if (req) {
+                    summaryText += `- ${req.agent} (${req.lead}): ${req.slot} on ${req.date} [Status: ${req.status}] by ${req.actionBy || 'Pending'} | Note: ${req.note || 'None'}\n`;
+                }
+            });
+
+            summaryText += "\nSTRICT COMPANY POLICY:\nNo cancellation of Overtime is allowed unless there is a valid emergency.\n\nBest regards,\nPetro Operations Management";
+
+            const subject = encodeURIComponent("Multiple Overtime Commit Notice");
+            const body = encodeURIComponent(summaryText);
+
+            window.location.href = `mailto:agents@company.com?subject=${subject}&body=${body}`;
+        }
+
+        function exportToExcel() {
+            if (requests.length === 0) {
+                alert("No data available to export.");
+                return;
+            }
+
+            let html = `
+                <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+                <head>
+                    <meta charset="utf-8">
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1e293b; }
+                        h2 { color: #0f172a; border-bottom: 2px solid #4f46e5; padding-bottom: 6px; margin-top: 20px; }
+                        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; font-size: 11pt; }
+                        th { background-color: #4f46e5; color: #ffffff; font-weight: bold; text-align: left; padding: 10px; border: 1px solid #cbd5e1; }
+                        td { padding: 8px 10px; border: 1px solid #cbd5e1; vertical-align: middle; mso-number-format:"\@"; }
+                        tr:nth-child(even) { background-color: #f8fafc; }
+                        .total-row { font-weight: bold; background-color: #e2e8f0; }
+                    </style>
+                </head>
+                <body>
+                    <h2>🛡️ Petro Overtime Management - Comprehensive Report</h2>
+                    <p><b>Generated On:</b> ${new Date().toLocaleString()}</p>
+
+                    <h3>1. Summary Per Team Lead (Approved Hours)</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Team Lead</th>
+                                <th>Total Approved Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            const leadsList = ["Edwin C.", "Frank M.", "Hazel M.", "Kyle B."];
+            let grandTotalApproved = 0;
+
+            leadsList.forEach(l => {
+                let leadTotal = requests.filter(r => cleanLeadFormat(r.lead) === l && r.status === 'Approved').reduce((sum, r) => sum + r.duration, 0);
+                grandTotalApproved += leadTotal;
+                html += `<tr><td><b>${l}</b></td><td>${leadTotal} hrs</td></tr>`;
+            });
+
+            html += `
+                        <tr class="total-row">
+                            <td>Grand Total Approved</td>
+                            <td>${grandTotalApproved} hrs</td>
+                        </tr>
+                        </tbody>
+                    </table>
+
+                    <h3>2. Summary Per Date (Approved Hours)</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Total Approved Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            let dateMap = {};
+            requests.filter(r => r.status === 'Approved' && r.date).forEach(r => {
+                dateMap[r.date] = (dateMap[r.date] || 0) + r.duration;
+            });
+
+            Object.keys(dateMap).sort().forEach(d => {
+                html += `<tr><td>${d}</td><td>${dateMap[d]} hrs</td></tr>`;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+
+                    <h3>3. Detailed Overtime Requests</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Agent Name</th>
+                                <th>Team Lead</th>
+                                <th>Date</th>
+                                <th>Time Slot</th>
+                                <th>Duration</th>
+                                <th>Status</th>
+                                <th>Processed By</th>
+                                <th>Lead Note</th>
+                                <th>Submitted At</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            requests.forEach(r => {
+                let cleanSlot = (r.slot || '').replace(/–/g, '-').replace(/—/g, '-');
+                html += `
+                    <tr>
+                        <td>${r.id}</td>
+                        <td>${r.agent || ''}</td>
+                        <td>${cleanLeadFormat(r.lead) || ''}</td>
+                        <td>${r.date || ''}</td>
+                        <td>${cleanSlot}</td>
+                        <td>${r.duration || 0} hrs</td>
+                        <td><b>${r.status || 'Pending'}</b></td>
+                        <td>${r.actionBy || 'None'}</td>
+                        <td>${r.note || ''}</td>
+                        <td>${r.submittedAt || ''}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </body>
+                </html>
+            `;
+
+            const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `Petro_Overtime_Report_${new Date().toISOString().slice(0,10)}.xls`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function getFilteredRequestsForDashboard() {
+            const filterLead = document.getElementById('filter-lead').value;
+            const filterAgent = document.getElementById('filter-agent-sup').value;
+            const filterStatus = document.getElementById('filter-status').value;
+            const filterSupMode = document.getElementById('filter-sup-mode').value;
+            const filterSupWeekSelect = document.getElementById('filter-sup-week-select').value;
+            const filterSupDay = document.getElementById('filter-sup-day').value;
+            const filterStart = document.getElementById('filter-sup-start').value;
+            const filterEnd = document.getElementById('filter-sup-end').value;
+
+            let filteredReqs = [...requests];
+            filteredReqs.sort((a, b) => a.id - b.id);
+
+            if (filterLead) filteredReqs = filteredReqs.filter(r => cleanLeadFormat(r.lead) === filterLead);
+            if (filterAgent) filteredReqs = filteredReqs.filter(r => r.agent === filterAgent);
+            if (filterStatus) filteredReqs = filteredReqs.filter(r => r.status === filterStatus);
+
+            if (filterSupMode === 'specific-day') {
+                if (filterSupDay) {
+                    filteredReqs = filteredReqs.filter(r => r.date === filterSupDay);
+                }
+            } else if (filterSupMode === 'date-range') {
+                if (filterStart) {
+                    filteredReqs = filteredReqs.filter(r => r.date >= filterStart);
+                }
+                if (filterEnd) {
+                    filteredReqs = filteredReqs.filter(r => r.date <= filterEnd);
+                }
+            } else {
+                if (filterSupWeekSelect) {
+                    const [weekStartStr, weekEndStr] = filterSupWeekSelect.split('_');
+                    filteredReqs = filteredReqs.filter(r => r.date && r.date >= weekStartStr && r.date <= weekEndStr);
+                }
+            }
+            return filteredReqs;
+        }
+
+        function renderSupervisorDashboard() {
+            const queueContainer = document.getElementById('lead-queue-list');
+            queueContainer.innerHTML = '';
+            document.getElementById('select-all-checkbox').checked = false;
+
+            // Render Metric Cards per Lead (Only Edwin, Frank, Hazel, Kyle for active hour summaries)
+            const leadsList = ["Edwin C.", "Frank M.", "Hazel M.", "Kyle B."];
+            const metricsContainer = document.getElementById('metrics-grid-container');
+            metricsContainer.innerHTML = '';
+
+            let grandTotal = 0;
+            leadsList.forEach(l => {
+                const leadTotal = requests.filter(r => cleanLeadFormat(r.lead) === l && r.status === 'Approved').reduce((sum, r) => sum + r.duration, 0);
+                grandTotal += leadTotal;
+                metricsContainer.innerHTML += `
+                    <div class="metric-card">
+                        <h4>${l}</h4>
+                        <div class="value">${leadTotal} <span style="font-size:0.8rem; font-weight:normal; color:#64748b;">hrs</span></div>
+                    </div>
+                `;
+            });
+            metricsContainer.innerHTML += `
+                <div class="metric-card" style="border-left-color: var(--success);">
+                    <h4>Total Approved</h4>
+                    <div class="value">${grandTotal} <span style="font-size:0.8rem; font-weight:normal; color:#64748b;">hrs</span></div>
+                </div>
+            `;
+
+            let filteredReqs = getFilteredRequestsForDashboard();
+
+            if (filteredReqs.length === 0) {
+                queueContainer.innerHTML = `<tr><td colspan="9" style="text-align:center; color:#64748b;">No agent submissions found</td></tr>`;
+                return;
+            }
+
+            filteredReqs.forEach(r => {
+                let badgeClass = r.status === 'Approved' ? 'badge-approved' : (r.status === 'Rejected' ? 'badge-rejected' : 'badge-pending');
+                let sigHtml = r.signatureData ? `<img src="${r.signatureData}" style="max-height:30px; border:1px solid #e2e8f0; background:#fff; border-radius:4px;" alt="Signature"/>` : `<span style="font-style:italic; color:#64748b;">No signature</span>`;
+                let auditHtml = r.actionBy ? `<br><small style="color:#0284c7; font-weight:600;">By: ${r.actionBy}</small>` : '';
+
+                queueContainer.innerHTML += `
+                    <tr>
+                        <td><input type="checkbox" class="row-checkbox" value="${r.id}"></td>
+                        <td><b>${r.agent}</b></td>
+                        <td><b>${cleanLeadFormat(r.lead)}</b></td>
+                        <td>${r.date}</td>
+                        <td>
+                            <span id="slot_display_${r.id}"><b>${r.slot}</b> (${r.duration} hrs)</span>
+                        </td>
+                        <td><small style="color: #64748b;">${r.submittedAt || 'N/A'}</small></td>
+                        <td>${sigHtml}</td>
+                        <td>
+                            <span class="badge ${badgeClass}">${r.status}</span>${auditHtml}<br>
+                            <input type="text" id="note_${r.id}" value="${r.note || ''}" placeholder="Type note..." style="margin-top:4px; font-size:0.8rem; padding:4px; border:1px solid var(--border-color); border-radius:4px; width:140px;">
+                        </td>
+                        <td style="text-align: center;">
+                            <div class="action-icon-group" style="justify-content: center;">
+                                <span class="action-icon approve" title="Approve" onclick="updateLeadAction(${r.id}, 'Approved')">✔️</span>
+                                <span class="action-icon reject" title="Reject" onclick="updateLeadAction(${r.id}, 'Rejected')">❌</span>
+                                <span class="action-icon edit" id="edit_btn_${r.id}" title="Edit OT Time Slot" onclick="enableEditRequest(${r.id})">✏️</span>
+                                <span class="action-icon delete" title="Delete" onclick="supervisorDeleteRequest(${r.id})">🗑️</span>
+                                <span class="action-icon email" title="Send Outlook Email" onclick="sendOutlookEmail(${r.id})">✉️</span>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+    </script>
+</body>
+</html>
