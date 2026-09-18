@@ -7,6 +7,8 @@
     <!-- Firebase SDKs (Compat Version) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <!-- SheetJS for reading uploaded Kiosk Schedule .xlsx files (incl. cell fill colors) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
             --primary: #4f46e5;
@@ -315,6 +317,46 @@
             box-sizing: border-box;
         }
         .modal-card.large { max-width: 680px; max-height: 85vh; overflow-y: auto; }
+
+        /* ===== KIOSK SCHEDULE TAB ===== */
+        #kiosk-password-modal, #kiosk-name-modal, #kiosk-file-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
+            display: none; justify-content: center; align-items: center; z-index: 1000;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+
+        .kiosk-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem 1.1rem;
+            margin-bottom: 1.15rem;
+            font-size: 0.8rem;
+            color: #475569;
+        }
+        .kiosk-legend-item { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+        .kiosk-swatch { width: 14px; height: 14px; border-radius: 4px; display: inline-block; border: 1px solid rgba(0,0,0,0.08); }
+        .kiosk-swatch.wfh { background: #16a34a; }
+        .kiosk-swatch.change { background: #eab308; }
+        .kiosk-swatch.onsite { background: #2563eb; }
+        .kiosk-swatch.off { background: #ef4444; }
+
+        .kiosk-cell { padding: 0.35rem 0.5rem; border-radius: 6px; font-weight: 600; font-size: 0.78rem; text-align: center; display: inline-block; min-width: 78px; }
+        .kiosk-cell.wfh { background: #d1fae5; color: #065f46; }
+        .kiosk-cell.change { background: #fef9c3; color: #92400e; }
+        .kiosk-cell.onsite { background: #dbeafe; color: #1e40af; }
+        .kiosk-cell.off { background: #fee2e2; color: #b91c1c; }
+
+        .kiosk-streak-badge {
+            background: #fee2e2; color: #b91c1c; font-size: 0.65rem; font-weight: 700;
+            padding: 2px 7px; border-radius: 9999px; margin-left: 6px; white-space: nowrap;
+        }
+
+        .kiosk-upload-history-item {
+            font-size: 0.8rem; color: #475569; padding: 0.5rem 0.65rem; border-bottom: 1px solid var(--border-color);
+        }
+        .kiosk-upload-history-item:last-child { border-bottom: none; }
     </style>
 </head>
 <body>
@@ -395,6 +437,51 @@
         </div>
     </div>
 
+    <!-- PASSWORD MODAL FOR KIOSK SCHEDULE UPLOAD -->
+    <div id="kiosk-password-modal">
+        <div class="modal-card" style="text-align: center;">
+            <h3 style="margin-top:0;">Kiosk Upload Security</h3>
+            <p style="font-size: 0.85rem; color: #64748b;">Enter password to upload a new Kiosk Schedule.</p>
+            <input type="password" id="kiosk-password-input" value="" placeholder="Enter password" style="margin-bottom: 1.25rem; text-align: center; font-size: 1.1rem; letter-spacing: 2px;">
+            <div style="display: flex; gap: 10px;">
+                <button class="btn" style="flex: 1;" onclick="verifyKioskPassword()">Unlock</button>
+                <button class="btn btn-secondary" style="flex: 1; background: #e2e8f0; color: #334155;" onclick="closeKioskPasswordModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SELECT UPLOADER NAME MODAL FOR KIOSK SCHEDULE -->
+    <div id="kiosk-name-modal">
+        <div class="modal-card" style="text-align: center;">
+            <h3 style="margin-top:0;">Select Your Name</h3>
+            <p style="font-size: 0.85rem; color: #64748b;">Please select your name for upload audit history logging.</p>
+            <select id="kiosk-uploader-name" style="margin-bottom: 1.25rem; text-align: center; font-size: 1rem;">
+                <option value="Hazel M. (151938)">Hazel M. (151938)</option>
+                <option value="Frank M. (60219)">Frank M. (60219)</option>
+                <option value="Kyle B. (231286)">Kyle B. (231286)</option>
+                <option value="Edwin C. (90174)">Edwin C. (90174)</option>
+                <option value="Seth R.">Seth R.</option>
+                <option value="Arvy G.">Arvy G.</option>
+                <option value="Glenn F.">Glenn F.</option>
+            </select>
+            <button class="btn" style="width: 100%;" onclick="confirmKioskUploaderName()">Continue to Upload</button>
+        </div>
+    </div>
+
+    <!-- FILE PICKER MODAL FOR KIOSK SCHEDULE -->
+    <div id="kiosk-file-modal">
+        <div class="modal-card" style="text-align: center;">
+            <h3 style="margin-top:0;">Upload Kiosk Schedule</h3>
+            <p style="font-size: 0.85rem; color: #64748b;">Uploading as: <b id="kiosk-uploader-display"></b></p>
+            <p style="font-size: 0.8rem; color: #64748b;">Choose the schedule .xlsx file. This will replace the schedule currently shown to agents.</p>
+            <input type="file" id="kiosk-file-input" accept=".xlsx,.xls" style="margin-bottom: 1.25rem;">
+            <div style="display: flex; gap: 10px;">
+                <button class="btn" style="flex: 1;" onclick="submitKioskFile()">Upload</button>
+                <button class="btn btn-secondary" style="flex: 1; background: #e2e8f0; color: #334155;" onclick="closeKioskFileModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <header>
         <div class="header-title">
             <span style="font-size: 1.3rem;">🛡️</span>
@@ -403,6 +490,7 @@
         <div class="nav-controls">
             <a href="index.html" class="home-btn">🏠 Home</a>
             <button class="tab-btn active" id="btn-agent" onclick="switchTab('agent')">👤 Agent Portal</button>
+            <button class="tab-btn" id="btn-kiosk" onclick="switchTab('kiosk')">📅 Kiosk Schedule</button>
             <button class="tab-btn" id="btn-supervisor" onclick="requestSupervisorAccess()">👔 Supervisor</button>
             <a href="https://verifone365-my.sharepoint.com/:x:/g/personal/kyles6_verifone_com/IQDW2vjf27eGQ4EpJCMcnkC1AaMVuRCbe69ceYV39zK-hLk?e=INAVav&isSPOFile=1&ovuser=611a22d6-8c40-4958-84e3-ce47d8205d98%2CT_HazelM1%40verifone.com&wdExp=TEAMS-TREATMENT&web=1&clickparams=eyJBcHBOYW1lIjoiVGVhbXMtRGVza3RvcCIsIkFwcFZlcnNpb24iOiI0OS8yNjA4MTMxOTMyMSJ9" target="_blank" class="tab-btn external-plot">📈 Public OT ↗</a>
         </div>
@@ -619,6 +707,58 @@
                 </table>
             </div>
         </div>
+
+        <!-- ================= KIOSK SCHEDULE PANEL ================= -->
+        <div id="panel-kiosk" class="panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h2 style="margin:0 0 4px 0;">Kiosk Schedule</h2>
+                    <p style="margin:0; color:#64748b; font-size:0.85rem;" id="kiosk-week-label">Search your name to view your schedule.</p>
+                </div>
+                <button class="btn" style="padding: 0.45rem 0.9rem; background: #0284c7; font-size: 0.82rem; width: auto;" onclick="requestKioskUploadAccess()">🔒 Upload Schedule</button>
+            </div>
+
+            <div class="warning-banner">
+                ⚠️ <b>Reminder:</b> Please ensure that no one is working 7 days straight.<br>
+                <b>Note:</b> If you notice any schedule changes, please reach out to your leads for clarification or to have your schedule corrected.
+            </div>
+
+            <div class="kiosk-legend">
+                <span class="kiosk-legend-item"><span class="kiosk-swatch wfh"></span> Work From Home</span>
+                <span class="kiosk-legend-item"><span class="kiosk-swatch change"></span> Schedule Change</span>
+                <span class="kiosk-legend-item"><span class="kiosk-swatch onsite"></span> Onsite</span>
+                <span class="kiosk-legend-item"><span class="kiosk-swatch off"></span> Off</span>
+            </div>
+
+            <div class="form-group" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; align-items: center; margin-bottom: 1.25rem; background: #f8fafc; padding: 1rem; border-radius: 12px; border: 1px solid var(--border-color);">
+                <div>
+                    <label for="kiosk-search-input">Search Your Name</label>
+                    <input type="text" id="kiosk-search-input" placeholder="Start typing your name..." oninput="renderKioskSchedule()">
+                </div>
+                <div>
+                    <label for="kiosk-category-filter">Team / Group</label>
+                    <select id="kiosk-category-filter" onchange="renderKioskSchedule()">
+                        <option value="">-- All Groups --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table id="kiosk-schedule-table">
+                    <thead id="kiosk-schedule-thead"></thead>
+                    <tbody id="kiosk-schedule-tbody">
+                        <tr><td style="text-align:center; color:#64748b;">No schedule uploaded yet.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 style="margin-top: 2rem;">📜 Upload History</h3>
+            <div class="table-responsive" style="max-height: 220px;">
+                <div id="kiosk-history-list">
+                    <div class="kiosk-upload-history-item" style="text-align:center; color:#64748b;">No uploads yet.</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -765,6 +905,23 @@
             }
         });
 
+        // --- KIOSK SCHEDULE STATE & REAL-TIME LISTENERS ---
+        let kioskScheduleData = null; // { categories: [...], uploadedBy, uploadedAt, fileName }
+        let kioskHistoryData = [];
+        let currentKioskUploaderName = "";
+
+        db.ref('kioskSchedule/current').on('value', (snapshot) => {
+            kioskScheduleData = snapshot.val() || null;
+            populateKioskCategoryDropdown();
+            renderKioskSchedule();
+        });
+
+        db.ref('kioskSchedule/history').on('value', (snapshot) => {
+            const data = snapshot.val();
+            kioskHistoryData = data ? Object.values(data) : [];
+            renderKioskHistory();
+        });
+
         function switchTab(tabName) {
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => {
@@ -774,6 +931,12 @@
             if (tabName === 'agent') {
                 document.getElementById('panel-agent').classList.add('active');
                 document.getElementById('btn-agent').classList.add('active');
+            } else if (tabName === 'kiosk') {
+                document.getElementById('panel-kiosk').classList.add('active');
+                document.getElementById('btn-kiosk').classList.add('active');
+                populateKioskCategoryDropdown();
+                renderKioskSchedule();
+                renderKioskHistory();
             } else {
                 document.getElementById('panel-supervisor').classList.add('active');
                 document.getElementById('btn-supervisor').classList.add('active');
@@ -1512,6 +1675,250 @@
                     </tr>
                 `;
             });
+        }
+
+        // ================= KIOSK SCHEDULE TAB LOGIC =================
+
+        function requestKioskUploadAccess() {
+            document.getElementById('kiosk-password-input').value = '';
+            document.getElementById('kiosk-password-modal').style.display = 'flex';
+        }
+        function closeKioskPasswordModal() {
+            document.getElementById('kiosk-password-input').value = '';
+            document.getElementById('kiosk-password-modal').style.display = 'none';
+        }
+        function verifyKioskPassword() {
+            const pwd = document.getElementById('kiosk-password-input').value;
+            if (pwd === "@Trec123") {
+                document.getElementById('kiosk-password-input').value = '';
+                closeKioskPasswordModal();
+                document.getElementById('kiosk-name-modal').style.display = 'flex';
+            } else {
+                alert("Incorrect password! Access denied.");
+                document.getElementById('kiosk-password-input').value = '';
+            }
+        }
+
+        function confirmKioskUploaderName() {
+            currentKioskUploaderName = document.getElementById('kiosk-uploader-name').value;
+            document.getElementById('kiosk-name-modal').style.display = 'none';
+            document.getElementById('kiosk-uploader-display').innerText = currentKioskUploaderName;
+            document.getElementById('kiosk-file-input').value = '';
+            document.getElementById('kiosk-file-modal').style.display = 'flex';
+        }
+
+        function closeKioskFileModal() {
+            document.getElementById('kiosk-file-input').value = '';
+            document.getElementById('kiosk-file-modal').style.display = 'none';
+        }
+
+        function submitKioskFile() {
+            const fileInput = document.getElementById('kiosk-file-input');
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) {
+                alert("Please choose an Excel file to upload.");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellStyles: true, cellDates: true });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[firstSheetName];
+                    const categories = parseKioskSheet(sheet);
+
+                    if (!categories.length) {
+                        alert("Could not detect any schedule data in this file. Please check the format and try again.");
+                        return;
+                    }
+
+                    const uploadedBy = currentKioskUploaderName;
+                    const uploadedAt = new Date().toLocaleString();
+                    const payload = { categories, uploadedBy, uploadedAt, fileName: file.name };
+
+                    db.ref('kioskSchedule/current').set(payload).then(() => {
+                        return db.ref('kioskSchedule/history').push({ uploadedBy, uploadedAt, fileName: file.name });
+                    }).then(() => {
+                        closeKioskFileModal();
+                        alert("Kiosk schedule uploaded successfully!");
+                    }).catch(err => {
+                        alert("Upload failed: " + err.message);
+                    });
+                } catch (err) {
+                    alert("Could not read this file. Please make sure it is a valid Excel (.xlsx) file.");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Parse a Kiosk Schedule worksheet into blocks of { category, dates[7], agents:[{name, shifts:[{text,color}]}] }
+        function parseKioskSheet(ws) {
+            if (!ws || !ws['!ref']) return [];
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            const categories = [];
+            let currentCat = null;
+
+            for (let R = range.s.r; R <= range.e.r; R++) {
+                const cellA = ws[XLSX.utils.encode_cell({ r: R, c: 0 })];
+                const valA = cellA ? cellA.v : undefined;
+                const cellB = ws[XLSX.utils.encode_cell({ r: R, c: 1 })];
+                const isDateHeaderRow = cellB && cellB.v instanceof Date;
+
+                if (valA && isDateHeaderRow) {
+                    const dates = [];
+                    for (let c = 1; c <= 7; c++) {
+                        const cell = ws[XLSX.utils.encode_cell({ r: R, c })];
+                        dates.push(cell && cell.v instanceof Date ? formatKioskISODate(cell.v) : '');
+                    }
+                    currentCat = { category: String(valA).trim(), dates, agents: [] };
+                    categories.push(currentCat);
+                    continue;
+                }
+
+                if (valA && String(valA).trim().toLowerCase() === 'name') {
+                    continue; // day-name sub-header row, skip
+                }
+
+                if (!valA) {
+                    continue; // blank spacer row
+                }
+
+                if (currentCat) {
+                    const shifts = [];
+                    for (let c = 1; c <= 7; c++) {
+                        const cell = ws[XLSX.utils.encode_cell({ r: R, c })];
+                        const raw = (cell && cell.v != null) ? String(cell.v).trim() : '';
+                        shifts.push({ text: raw, color: classifyKioskShiftColor(cell, raw) });
+                    }
+                    currentCat.agents.push({ name: String(valA).trim(), shifts });
+                }
+            }
+            return categories;
+        }
+
+        function formatKioskISODate(d) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+
+        // Recognized fill colors from the source workbook mapped to status categories
+        const KIOSK_COLOR_MAP = {
+            '00B050': 'wfh',    // green
+            'FFFF00': 'change', // yellow
+            'B3CEFB': 'onsite', // blue
+            '82CAEC': 'onsite'  // blue (alt shade)
+        };
+
+        function getKioskCellHex(cell) {
+            try {
+                if (cell && cell.s && cell.s.fgColor && cell.s.fgColor.rgb) {
+                    return String(cell.s.fgColor.rgb).slice(-6).toUpperCase();
+                }
+            } catch (e) { /* ignore */ }
+            return null;
+        }
+
+        function classifyKioskShiftColor(cell, rawText) {
+            const hex = getKioskCellHex(cell);
+            if (hex && KIOSK_COLOR_MAP[hex]) return KIOSK_COLOR_MAP[hex];
+            if (!rawText || rawText.toUpperCase() === 'OFF') return 'off';
+            return 'onsite';
+        }
+
+        function populateKioskCategoryDropdown() {
+            const select = document.getElementById('kiosk-category-filter');
+            const currentVal = select.value;
+            select.innerHTML = '<option value="">-- All Groups --</option>';
+            if (kioskScheduleData && kioskScheduleData.categories) {
+                kioskScheduleData.categories.forEach(cat => {
+                    select.innerHTML += `<option value="${cat.category}">${cat.category}</option>`;
+                });
+            }
+            select.value = currentVal;
+        }
+
+        function kioskDayLabel(isoDate) {
+            if (!isoDate) return '';
+            const d = new Date(isoDate + 'T00:00:00');
+            const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            return `${days[d.getDay()]}<br><small style="font-weight:400;">${months[d.getMonth()]} ${d.getDate()}</small>`;
+        }
+
+        function renderKioskSchedule() {
+            const thead = document.getElementById('kiosk-schedule-thead');
+            const tbody = document.getElementById('kiosk-schedule-tbody');
+            const weekLabel = document.getElementById('kiosk-week-label');
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+
+            if (!kioskScheduleData || !kioskScheduleData.categories || !kioskScheduleData.categories.length) {
+                weekLabel.innerText = 'Search your name to view your schedule.';
+                tbody.innerHTML = `<tr><td style="text-align:center; color:#64748b;">No schedule uploaded yet.</td></tr>`;
+                return;
+            }
+
+            const searchTerm = (document.getElementById('kiosk-search-input').value || '').trim().toLowerCase();
+            const categoryFilter = document.getElementById('kiosk-category-filter').value;
+
+            const referenceDates = kioskScheduleData.categories[0].dates || [];
+            weekLabel.innerHTML = `Week of <b>${referenceDates[0] || ''}</b> to <b>${referenceDates[6] || ''}</b> &nbsp;•&nbsp; Uploaded by <b>${kioskScheduleData.uploadedBy || 'N/A'}</b> on ${kioskScheduleData.uploadedAt || 'N/A'}`;
+
+            thead.innerHTML = `
+                <tr>
+                    <th>Group</th>
+                    <th>Name</th>
+                    ${referenceDates.map(d => `<th>${kioskDayLabel(d)}</th>`).join('')}
+                </tr>
+            `;
+
+            let rowsHtml = '';
+            let matchCount = 0;
+
+            kioskScheduleData.categories.forEach(cat => {
+                if (categoryFilter && cat.category !== categoryFilter) return;
+
+                cat.agents.forEach(ag => {
+                    if (searchTerm && !ag.name.toLowerCase().includes(searchTerm)) return;
+                    matchCount++;
+
+                    const workingAllWeek = ag.shifts.length === 7 && ag.shifts.every(s => s.color !== 'off');
+                    const streakBadge = workingAllWeek ? `<span class="kiosk-streak-badge">⚠ 7 days straight</span>` : '';
+
+                    rowsHtml += `
+                        <tr>
+                            <td>${cat.category}</td>
+                            <td><b>${ag.name}</b>${streakBadge}</td>
+                            ${ag.shifts.map(s => `<td><span class="kiosk-cell ${s.color}">${s.text || 'OFF'}</span></td>`).join('')}
+                        </tr>
+                    `;
+                });
+            });
+
+            if (matchCount === 0) {
+                const colspan = 2 + referenceDates.length;
+                tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; color:#64748b;">${searchTerm ? 'No matching name found.' : 'No agents in this group.'}</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = rowsHtml;
+        }
+
+        function renderKioskHistory() {
+            const container = document.getElementById('kiosk-history-list');
+            if (!kioskHistoryData || !kioskHistoryData.length) {
+                container.innerHTML = `<div class="kiosk-upload-history-item" style="text-align:center; color:#64748b;">No uploads yet.</div>`;
+                return;
+            }
+            const sorted = [...kioskHistoryData].reverse(); // Firebase push order is chronological; show newest first
+            container.innerHTML = sorted.map(h => `
+                <div class="kiosk-upload-history-item">
+                    📤 <b>${h.fileName || 'schedule.xlsx'}</b> uploaded by <b>${h.uploadedBy || 'Unknown'}</b> on ${h.uploadedAt || 'N/A'}
+                </div>
+            `).join('');
         }
     </script>
 </body>
