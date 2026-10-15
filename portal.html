@@ -1407,11 +1407,12 @@
             if (!req) return;
 
             slotDisplaySpan.innerHTML = `
-                <div style="display: flex; gap: 4px; align-items: center;">
-                    <select id="edit_start_${id}" style="padding: 2px; font-size: 0.8rem; width: 90px;"></select>
+                <div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
+                    <select id="edit_start_${id}" style="padding:2px; font-size:0.8rem; width:110px;"></select>
                     <span>to</span>
-                    <select id="edit_end_${id}" style="padding: 2px; font-size: 0.8rem; width: 90px;"></select>
-                    <button class="btn-secondary" style="padding: 2px 6px; background: #10b981;" onclick="saveEditRequest(${id})">Save</button>
+                    <select id="edit_end_${id}" style="padding:2px; font-size:0.8rem; width:110px;"></select>
+                    <button class="btn-secondary" style="padding:2px 6px; background:#10b981;"
+                           onclick="saveEditRequest(${id})">Save</button>
                 </div>
             `;
             editBtn.style.display = 'none';
@@ -1419,33 +1420,46 @@
             const startSel = document.getElementById(`edit_start_${id}`);
             const endSel = document.getElementById(`edit_end_${id}`);
 
-            timeSlots.forEach(slot => {
-                let startHour = slot.split('–')[0];
-                startSel.innerHTML += `<option value="${startHour}">${startHour}</option>`;
-                endSel.innerHTML += `<option value="${slot.split('–')[1]}">${slot.split('–')[1]}</option>`;
-            });
+            const startTimes = [...new Set(timeSlots.map(slot => slot.split('–')[0]))];
+            const endTimes = [...new Set(timeSlots.map(slot => slot.split('–')[1]))];
 
-            if(req.slot && req.slot.includes('–')) {
-                let parts = req.slot.split('–');
-                startSel.value = parts[0];
-                endSel.value = parts[1];
+            startSel.innerHTML = startTimes.map(t =>
+                `<option value="${t}">${t}</option>`
+            ).join('');
+
+            endSel.innerHTML = endTimes.map(t =>
+                `<option value="${t}">${t}</option>`
+            ).join('');
+
+            if (req.slot && req.slot.includes('–')) {
+                const [start, end] = req.slot.split('–');
+                startSel.value = start;
+                endSel.value = end;
             }
         }
 
         function saveEditRequest(id) {
             const startSel = document.getElementById(`edit_start_${id}`);
             const endSel = document.getElementById(`edit_end_${id}`);
-            if(!startSel || !endSel) return;
+            if (!startSel || !endSel) return;
 
             const startVal = startSel.value;
             const endVal = endSel.value;
 
-            let startIndex = timeSlots.findIndex(s => s.startsWith(startVal));
-            let endIndex = timeSlots.findIndex(s => s.startsWith(endVal));
+            const startMinutes = timeToMinutes(startVal);
+            const endMinutes = timeToMinutes(endVal);
 
-            let computedDuration = 1;
-            if(startIndex !== -1 && endIndex !== -1) {
-                computedDuration = endIndex > startIndex ? (endIndex - startIndex) : (24 - startIndex + endIndex);
+            let durationMinutes = endMinutes - startMinutes;
+
+            if (durationMinutes <= 0) {
+                durationMinutes += 24 * 60;
+            }
+
+            const computedDuration = durationMinutes / 60;
+
+            if (computedDuration < 0.5 || computedDuration > 12) {
+                alert("Duration must be between 0.5 and 12 hours.");
+                return;
             }
 
             const newSlotStr = `${startVal}–${endVal}`;
@@ -1455,6 +1469,8 @@
                 duration: computedDuration
             }).then(() => {
                 renderSupervisorDashboard();
+            }).catch(error => {
+                alert("Failed to update overtime request: " + error.message);
             });
         }
 
