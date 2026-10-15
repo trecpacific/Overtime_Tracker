@@ -522,31 +522,55 @@
 
                         <div class="form-group">
                             <label for="ot-start-time">Starting Time Slot</label>
-                            <select id="ot-start-time" required onchange="updateComputedRange()">
+                            <select id="ot-start-time" required onchange="updateComputedRange()">                   
                                 <option value="12am–1am">12am–1am</option>
+                                <option value="12:30am–1:30am">12:30am–1:30am</option>
                                 <option value="1am–2am">1am–2am</option>
+                                <option value="1:30am–2:30am">1:30am–2:30am</option>
                                 <option value="2am–3am">2am–3am</option>
+                                <option value="2:30am–3:30am">2:30am–3:30am</option>
                                 <option value="3am–4am">3am–4am</option>
+                                <option value="3:30am–4:30am">3:30am–4:30am</option>
                                 <option value="4am–5am">4am–5am</option>
+                                <option value="4:30am–5:30am">4:30am–5:30am</option>
                                 <option value="5am–6am">5am–6am</option>
+                                <option value="5:30am–6:30am">5:30am–6:30am</option>
                                 <option value="6am–7am">6am–7am</option>
+                                <option value="6:30am–7:30am">6:30am–7:30am</option>
                                 <option value="7am–8am">7am–8am</option>
+                                <option value="7:30am–8:30am">7:30am–8:30am</option>
                                 <option value="8am–9am">8am–9am</option>
+                                <option value="8:30am–9:30am">8:30am–9:30am</option>
                                 <option value="9am–10am">9am–10am</option>
+                                <option value="9:30am–10:30am">9:30am–10:30am</option>
                                 <option value="10am–11am">10am–11am</option>
+                                <option value="10:30am–11:30am">10:30am–11:30am</option>
                                 <option value="11am–12pm">11am–12pm</option>
+                                <option value="11:30am–12:30pm">11:30am–12:30pm</option>
                                 <option value="12pm–1pm">12pm–1pm</option>
+                                <option value="12:30pm–1:30pm">12:30pm–1:30pm</option>
                                 <option value="1pm–2pm">1pm–2pm</option>
+                                <option value="1:30pm–2:30pm">1:30pm–2:30pm</option>
                                 <option value="2pm–3pm">2pm–3pm</option>
+                                <option value="2:30pm–3:30pm">2:30pm–3:30pm</option>
                                 <option value="3pm–4pm">3pm–4pm</option>
+                                <option value="3:30pm–4:30pm">3:30pm–4:30pm</option>
                                 <option value="4pm–5pm">4pm–5pm</option>
+                                <option value="4:30pm–5:30pm">4:30pm–5:30pm</option>
                                 <option value="5pm–6pm">5pm–6pm</option>
+                                <option value="5:30pm–6:30pm">5:30pm–6:30pm</option>
                                 <option value="6pm–7pm">6pm–7pm</option>
+                                <option value="6:30pm–7:30pm">6:30pm–7:30pm</option>
                                 <option value="7pm–8pm">7pm–8pm</option>
+                                <option value="7:30pm–8:30pm">7:30pm–8:30pm</option>
                                 <option value="8pm–9pm">8pm–9pm</option>
+                                <option value="8:30pm–9:30pm">8:30pm–9:30pm</option>
                                 <option value="9pm–10pm">9pm–10pm</option>
+                                <option value="9:30pm–10:30pm">9:30pm–10:30pm</option>
                                 <option value="10pm–11pm">10pm–11pm</option>
+                                <option value="10:30pm–11:30pm">10:30pm–11:30pm</option>
                                 <option value="11pm–12am">11pm–12am</option>
+                                <option value="11:30pm–12:30am">11:30pm–12:30am</option>
                             </select>
                         </div>
 
@@ -778,7 +802,7 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        const timeSlots = ["12am–1am", "1am–2am", "2am–3am", "3am–4am", "4am–5am", "5am–6am", "6am–7am", "7am–8am", "8am–9am", "9am–10am", "10am–11am", "11am–12pm", "12pm–1pm", "1pm–2pm", "2pm–3pm", "3pm–4pm", "4pm–5pm", "5pm–6pm", "6pm–7pm", "7pm–8pm", "8pm–9pm", "9pm–10pm", "10pm–11pm", "11pm–12am"];
+        const timeSlots = ["12am–1am", "12:30am–1:30am", "1am–2am", "1:30am–2:30am", "2am–3am", "2:30am–3:30am", "3am–4am", "3:30am–4:30am", "4am–5am", "4:30am–5:30am", "5am–6am", "5:30am–6:30am", "6am–7am", "6:30am–7:30am", "7am–8am", "7:30am–8:30am", "8am–9am", "8:30am–9:30am", "9am–10am", "9:30am–10:30am", "10am–11am", "10:30am–11:30am", "11am–12pm", "11:30am–12:30pm", "12pm–1pm", "12:30pm–1:30pm", "1pm–2pm", "1:30pm–2:30pm", "2pm–3pm", "2:30pm–3:30pm", "3pm–4pm", "3:30pm–4:30pm", "4pm–5pm", "4:30pm–5:30pm", "5pm–6pm", "5:30pm–6:30pm", "6pm–7pm", "6:30pm–7:30pm", "7pm–8pm", "7:30pm–8:30pm", "8pm–9pm", "8:30pm–9:30pm", "9pm–10pm", "9:30pm–10:30pm", "10pm–11pm", "10:30pm–11:30pm", "11pm–12am", "11:30pm–12:30am"];
 
         let agents = [
             { name: "Kimberly T.", emp: "252056", lead: "Edwin C." }, { name: "John D.", emp: "252064", lead: "Edwin C." }, { name: "Harold R.", emp: "241642", lead: "Edwin C." }, { name: "Jeraldyn R.", emp: "231204", lead: "Edwin C." }, { name: "Renard C.", emp: "190342", lead: "Edwin C." }, { name: "Alfredo C.", emp: "252082", lead: "Edwin C." }, { name: "Dean C.", emp: "252052", lead: "Edwin C." }, { name: "Christian Q.", emp: "262168", lead: "Edwin C." }, { name: "Roi L.", emp: "252132", lead: "Edwin C." }, { name: "Remond L.", emp: "220654", lead: "Edwin C." },
