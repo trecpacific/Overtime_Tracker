@@ -1224,7 +1224,7 @@
             const agentName = document.getElementById('agent-name').value;
             const dateStr = document.getElementById('ot-date').value;
             const startSlot = document.getElementById('ot-start-time').value;
-            const duration = parseInt(document.getElementById('ot-duration').value);
+            const duration = parseFloat(document.getElementById('ot-duration').value) || 1;
             const computedSlot = document.getElementById('computed-range-display').value;
             const signatureData = canvas.toDataURL();
 
