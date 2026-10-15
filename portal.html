@@ -1174,17 +1174,49 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
 
+        
         function updateComputedRange() {
             const startSlot = document.getElementById('ot-start-time').value;
-            const duration = parseInt(document.getElementById('ot-duration').value) || 1;
-            const startHourStr = startSlot.split('–')[0];
-            const index = timeSlots.findIndex(s => s.startsWith(startHourStr));
-            
+            const duration = parseFloat(document.getElementById('ot-duration').value) || 1;
+
+            if (!startSlot) return;
+
+            const startTimeStr = startSlot.split('–')[0];
+            const index = timeSlots.findIndex(s => s === startSlot);
+
             if (index !== -1) {
-                let endIndex = (index + duration) % 24;
-                let endHourStr = timeSlots[endIndex].split('–')[0];
-                document.getElementById('computed-range-display').value = `${startHourStr}–${endHourStr}`;
+                const startMinutes = timeToMinutes(startTimeStr);
+                const endMinutes = (startMinutes + duration * 60) % (24 * 60);
+
+                const endTimeStr = minutesToTime(endMinutes);
+
+                document.getElementById('computed-range-display').value =
+                    `${startTimeStr}–${endTimeStr}`;
             }
+        }
+
+        function timeToMinutes(timeStr) {
+            const match = timeStr.match(/^(\d{1,2})(?::(\d{2}))?(am|pm)$/i);
+            if (!match) return 0;
+
+            let hours = parseInt(match[1], 10);
+            const minutes = parseInt(match[2] || "0", 10);
+            const period = match[3].toLowerCase();
+
+            if (period === "am" && hours === 12) hours = 0;
+            if (period === "pm" && hours !== 12) hours += 12;
+
+            return hours * 60 + minutes;
+        }
+
+        function minutesToTime(totalMinutes) {
+            const minutes = totalMinutes % (24 * 60);
+            const hours24 = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            const period = hours24 >= 12 ? "pm" : "am";
+            const hours12 = hours24 % 12 || 12;
+
+            return `${hours12}${mins ? ":" + String(mins).padStart(2, "0") : ""}${period}`;
         }
 
         function handleAgentSubmit(e) {
