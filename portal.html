@@ -757,7 +757,7 @@
             <div class="form-group" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; align-items: center; margin-bottom: 1.25rem; background: #f8fafc; padding: 1rem; border-radius: 12px; border: 1px solid var(--border-color);">
                 <div>
                     <label for="kiosk-search-input">Search Your Name</label>
-                    <input type="text" id="kiosk-search-input" placeholder="Start typing your name..." oninput="renderKioskSchedule()">
+                    <input type="text" id="kiosk-search-input" placeholder="Start typing your name..." oninput="scheduleKioskScheduleRender()">
                 </div>
                 <div>
                     <label for="kiosk-category-filter">Team / Group</label>
@@ -786,7 +786,6 @@
     </div>
 
     <script>
-        // --- OFFICIAL FIREBASE CONFIGURATION (COMPAT SYNTAX) ---
         const firebaseConfig = {
             apiKey: "AIzaSyCIR_fAGgctPZ9LPYZZhE7ueJSzINxCz3Q",
             authDomain: "overtime-commitment.firebaseapp.com",
@@ -798,7 +797,6 @@
             measurementId: "G-Z9RYM51RHY"
         };
 
-        // Initialize Firebase Compat SDK
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
@@ -812,7 +810,18 @@
         ];
 
         let requests = [];
-        let currentSupervisorName = "Hazel M. (151938)"; // Default logged-in supervisor
+        let currentSupervisorName = "Hazel M. (151938)";
+
+        let agentNameIndex = new Map();
+        function rebuildAgentNameIndex() {
+            agentNameIndex = new Map();
+            agents.forEach(a => {
+                const display = a.emp ? `${a.name} (${a.emp})` : a.name;
+                if (a.name) agentNameIndex.set(a.name.toLowerCase(), display);
+                if (a.emp) agentNameIndex.set(`${a.name} (${a.emp})`.toLowerCase(), display);
+            });
+        }
+        rebuildAgentNameIndex();
 
         function cleanNameFormat(nameStr) {
             if (!nameStr) return "";
@@ -871,10 +880,8 @@
             };
             if (nameMap[nameStr]) return nameMap[nameStr];
 
-            let foundAg = agents.find(a => a.name.toLowerCase() === nameStr.toLowerCase() || `${a.name} (${a.emp})`.toLowerCase() === nameStr.toLowerCase());
-            if (foundAg) {
-                return foundAg.emp ? `${foundAg.name} (${foundAg.emp})` : foundAg.name;
-            }
+            const indexedName = agentNameIndex.get(nameStr.toLowerCase());
+            if (indexedName) return indexedName;
 
             return nameStr;
         }
@@ -891,7 +898,6 @@
             return leadStr;
         }
 
-        // --- REAL-TIME LISTENERS FROM FIREBASE ---
         db.ref('requests').on('value', (snapshot) => {
             const data = snapshot.val();
             requests = data ? Object.values(data).map(r => ({
@@ -900,10 +906,12 @@
                 lead: cleanLeadFormat(r.lead),
                 actionBy: cleanNameFormat(r.actionBy)
             })) : [];
-            populateWeeklyDropdown();
-            renderAgentTracker();
+
             if (document.getElementById('panel-supervisor').classList.contains('active')) {
+                populateWeeklyDropdown();
                 renderSupervisorDashboard();
+            } else if (document.getElementById('panel-agent').classList.contains('active')) {
+                renderAgentTracker();
             }
         });
 
@@ -911,50 +919,65 @@
             const data = snapshot.val();
             if (data) {
                 agents = Object.values(data).map(a => {
-                    let cleanName = a.name.includes('(') ? a.name.split('(')[0].trim() : a.name;
-                    let cleanEmp = a.emp || (a.name.match(/\(([^)]+)\)/) ? a.name.match(/\(([^)]+)\)/)[1] : '');
+                    const originalName = String(a.name || '');
+                    const empMatch = originalName.match(/\(([^)]+)\)/);
+                    const cleanName = originalName.includes('(') ? originalName.split('(')[0].trim() : originalName;
+                    const cleanEmp = a.emp || (empMatch ? empMatch[1] : '');
                     return {
                         name: cleanName,
                         emp: cleanEmp,
                         lead: cleanLeadFormat(a.lead)
                     };
                 });
+                rebuildAgentNameIndex();
             } else {
                 db.ref('agents').set(agents);
             }
-            populateAgentDropdown();
-            updateAgentFilterDropdown();
+
+            if (document.getElementById('panel-agent').classList.contains('active')) {
+                populateAgentDropdown();
+                renderAgentTracker();
+            }
+            if (document.getElementById('panel-supervisor').classList.contains('active')) {
+                updateAgentFilterDropdown();
+            }
             if (document.getElementById('settings-modal').style.display === 'flex') {
                 renderRoster();
             }
         });
 
-        // --- KIOSK SCHEDULE STATE & REAL-TIME LISTENERS ---
-        let kioskScheduleData = null; // { categories: [...], uploadedBy, uploadedAt, fileName }
+        let kioskScheduleData = null;
         let kioskHistoryData = [];
         let currentKioskUploaderName = "";
+        let kioskRenderTimer = null;
 
         db.ref('kioskSchedule/current').on('value', (snapshot) => {
             kioskScheduleData = snapshot.val() || null;
-            populateKioskCategoryDropdown();
-            renderKioskSchedule();
+            if (document.getElementById('panel-kiosk').classList.contains('active')) {
+                populateKioskCategoryDropdown();
+                renderKioskSchedule();
+            }
         });
 
         db.ref('kioskSchedule/history').on('value', (snapshot) => {
             const data = snapshot.val();
             kioskHistoryData = data ? Object.values(data) : [];
-            renderKioskHistory();
+            if (document.getElementById('panel-kiosk').classList.contains('active')) {
+                renderKioskHistory();
+            }
         });
 
         function switchTab(tabName) {
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => {
-                if(!b.classList.contains('external-plot')) b.classList.remove('active');
+                if (!b.classList.contains('external-plot')) b.classList.remove('active');
             });
 
             if (tabName === 'agent') {
                 document.getElementById('panel-agent').classList.add('active');
                 document.getElementById('btn-agent').classList.add('active');
+                populateAgentDropdown();
+                renderAgentTracker();
             } else if (tabName === 'kiosk') {
                 document.getElementById('panel-kiosk').classList.add('active');
                 document.getElementById('btn-kiosk').classList.add('active');
@@ -1022,12 +1045,12 @@
         function populateAgentDropdown() {
             const select = document.getElementById('agent-name');
             const currentVal = select.value;
-            select.innerHTML = '<option value="">-- Choose Name --</option>';
-            agents.sort((a,b) => a.name.localeCompare(b.name)).forEach(ag => {
-                let shortLead = cleanLeadFormat(ag.lead);
-                let displayName = formatAgentDisplay(ag);
-                select.innerHTML += `<option value="${displayName}">${displayName} (${shortLead})</option>`;
-            });
+            const sortedAgents = agents.slice().sort((a, b) => a.name.localeCompare(b.name));
+            select.innerHTML = '<option value="">-- Choose Name --</option>' + sortedAgents.map(ag => {
+                const displayName = formatAgentDisplay(ag);
+                const shortLead = cleanLeadFormat(ag.lead);
+                return `<option value="${displayName}">${displayName} (${shortLead})</option>`;
+            }).join('');
             select.value = currentVal;
         }
 
@@ -1035,31 +1058,26 @@
             const leadFilter = document.getElementById('filter-lead').value;
             const agentSelect = document.getElementById('filter-agent-sup');
             const currentAgent = agentSelect.value;
-            agentSelect.innerHTML = '<option value="">-- All Agents --</option>';
-            
-            let filteredAgents = agents;
-            if (leadFilter) {
-                filteredAgents = agents.filter(a => cleanLeadFormat(a.lead) === leadFilter);
-            }
-            filteredAgents.sort((a,b) => a.name.localeCompare(b.name)).forEach(ag => {
-                let displayName = formatAgentDisplay(ag);
-                agentSelect.innerHTML += `<option value="${displayName}">${displayName}</option>`;
-            });
+            let filteredAgents = leadFilter
+                ? agents.filter(a => cleanLeadFormat(a.lead) === leadFilter)
+                : agents;
+            filteredAgents = filteredAgents.slice().sort((a, b) => a.name.localeCompare(b.name));
+            agentSelect.innerHTML = '<option value="">-- All Agents --</option>' + filteredAgents.map(ag => {
+                const displayName = formatAgentDisplay(ag);
+                return `<option value="${displayName}">${displayName}</option>`;
+            }).join('');
             agentSelect.value = currentAgent;
         }
 
-        // Generate Sunday-to-Saturday sequential calendar weeks
         function populateWeeklyDropdown() {
             const weekSelect = document.getElementById('filter-sup-week-select');
             const currentSelection = weekSelect.value;
-            weekSelect.innerHTML = '<option value="">-- All Weeks (Sun-Sat) --</option>';
+            const datesSet = new Set();
+            requests.forEach(r => { if (r.date) datesSet.add(r.date); });
 
-            let datesSet = new Set();
-            requests.forEach(r => { if(r.date) datesSet.add(r.date); });
-            
             let minDate, maxDate;
-            if(datesSet.size > 0) {
-                let sortedDates = Array.from(datesSet).sort();
+            if (datesSet.size > 0) {
+                const sortedDates = Array.from(datesSet).sort();
                 minDate = new Date(sortedDates[0] + 'T00:00:00');
                 maxDate = new Date(sortedDates[sortedDates.length - 1] + 'T00:00:00');
             } else {
@@ -1070,34 +1088,24 @@
             minDate.setDate(minDate.getDate() - minDate.getDay());
             maxDate.setDate(maxDate.getDate() + (6 - maxDate.getDay()));
 
+            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            const formatDateStr = d => `${months[d.getMonth()]} ${d.getDate()}`;
+            const formatValStr = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const options = ['<option value="">-- All Weeks (Sun-Sat) --</option>'];
             let currSun = new Date(minDate);
             let weekCounter = 1;
 
-            const formatDateStr = (d) => {
-                const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                return `${months[d.getMonth()]} ${d.getDate()}`;
-            };
-
-            const formatValStr = (d) => {
-                let y = d.getFullYear();
-                let m = String(d.getMonth() + 1).padStart(2, '0');
-                let day = String(d.getDate()).padStart(2, '0');
-                return `${y}-${m}-${day}`;
-            };
-
-            while(currSun <= maxDate) {
-                let currSat = new Date(currSun);
+            while (currSun <= maxDate) {
+                const currSat = new Date(currSun);
                 currSat.setDate(currSun.getDate() + 6);
-
-                let valString = `${formatValStr(currSun)}_${formatValStr(currSat)}`;
-                let labelString = `Week ${weekCounter}: ${formatDateStr(currSun)} – ${formatDateStr(currSat)}`;
-
-                weekSelect.innerHTML += `<option value="${valString}">${labelString}</option>`;
-
+                const valString = `${formatValStr(currSun)}_${formatValStr(currSat)}`;
+                const labelString = `Week ${weekCounter}: ${formatDateStr(currSun)} – ${formatDateStr(currSat)}`;
+                options.push(`<option value="${valString}">${labelString}</option>`);
                 currSun.setDate(currSun.getDate() + 7);
                 weekCounter++;
             }
 
+            weekSelect.innerHTML = options.join('');
             weekSelect.value = currentSelection;
         }
 
@@ -1122,7 +1130,6 @@
             }
         }
 
-        // --- ACCURATE CANVAS POINTER MAPPING ---
         const canvas = document.getElementById('sig-canvas');
         const ctx = canvas.getContext('2d');
         let painting = false;
@@ -1263,9 +1270,7 @@
 
         function supervisorDeleteRequest(id) {
             if (confirm("Are you sure you want to delete this overtime request?")) {
-                db.ref('requests/' + id).remove().then(() => {
-                    renderSupervisorDashboard();
-                });
+                db.ref('requests/' + id).remove();
             }
         }
 
@@ -1274,41 +1279,34 @@
             const filterType = document.getElementById('filter-type').value;
             const filterDate = document.getElementById('filter-date').value;
             const container = document.getElementById('agent-tracker-list');
-            container.innerHTML = '';
 
             if (!agentName) {
-                container.innerHTML = `<tr><td colspan="2" style="text-align:center; color:#64748b;">Please select your name on the left</td></tr>`;
+                container.innerHTML = '<tr><td colspan="2" style="text-align:center; color:#64748b;">Please select your name on the left</td></tr>';
                 return;
             }
 
-            let agentReqs = requests.filter(r => r.agent === agentName);
-
-            if (filterType === 'day' && filterDate) {
-                agentReqs = agentReqs.filter(r => r.date === filterDate);
-            } else if (filterType === 'month' && filterDate) {
-                const targetMonth = filterDate.substring(0, 7);
-                agentReqs = agentReqs.filter(r => r.date && r.date.startsWith(targetMonth));
-            }
+            const targetMonth = filterDate ? filterDate.substring(0, 7) : '';
+            const agentReqs = requests.filter(r => {
+                if (r.agent !== agentName) return false;
+                if (filterType === 'day' && filterDate) return r.date === filterDate;
+                if (filterType === 'month' && targetMonth) return !!r.date && r.date.startsWith(targetMonth);
+                return true;
+            });
 
             if (agentReqs.length === 0) {
-                container.innerHTML = `<tr><td colspan="2" style="text-align:center; color:#64748b;">No submissions match filter</td></tr>`;
+                container.innerHTML = '<tr><td colspan="2" style="text-align:center; color:#64748b;">No submissions match filter</td></tr>';
                 return;
             }
 
-            agentReqs.forEach(r => {
-                let badgeClass = r.status === 'Approved' ? 'badge-approved' : (r.status === 'Rejected' ? 'badge-rejected' : 'badge-pending');
-                let auditText = r.actionBy ? `<br><small style="color:#0284c7;">Processed by: ${r.actionBy}</small>` : '';
-                container.innerHTML += `
-                    <tr>
-                        <td><b>${r.slot}</b> (${r.duration} hrs)<br><small style="color:#64748b;">${r.date}</small></td>
-                        <td>
-                            <span class="badge ${badgeClass}">${r.status}</span>
-                            ${auditText}
-                            ${r.note ? `<br><small style="color:#475569; margin-top:4px; display:block;"><b>Lead Note:</b> ${r.note}</small>` : ''}
-                        </td>
-                    </tr>
-                `;
-            });
+            container.innerHTML = agentReqs.map(r => {
+                const badgeClass = r.status === 'Approved' ? 'badge-approved' : (r.status === 'Rejected' ? 'badge-rejected' : 'badge-pending');
+                const auditText = r.actionBy ? `<br><small style="color:#0284c7;">Processed by: ${r.actionBy}</small>` : '';
+                const noteText = r.note ? `<br><small style="color:#475569; margin-top:4px; display:block;"><b>Lead Note:</b> ${r.note}</small>` : '';
+                return `<tr>
+                    <td><b>${r.slot}</b> (${r.duration} hrs)<br><small style="color:#64748b;">${r.date}</small></td>
+                    <td><span class="badge ${badgeClass}">${r.status}</span>${auditText}${noteText}</td>
+                </tr>`;
+            }).join('');
         }
 
         function addAgent() {
@@ -1320,6 +1318,7 @@
             if (agents.some(a => a.name.toLowerCase() === name.toLowerCase())) { alert("Agent already exists."); return; }
             
             agents.push({ name, emp, lead });
+            rebuildAgentNameIndex();
             db.ref('agents').set(agents).then(() => {
                 document.getElementById('new-agent-name').value = '';
                 document.getElementById('new-agent-emp').value = '';
@@ -1331,6 +1330,7 @@
         function deleteAgent(name) {
             if (confirm(`Are you sure you want to delete ${name}?`)) {
                 agents = agents.filter(a => a.name !== name);
+                rebuildAgentNameIndex();
                 db.ref('agents').set(agents).then(() => {
                     renderRoster();
                 });
@@ -1348,55 +1348,45 @@
         function updateAgentLead(name, newLead) {
             const cleanedLead = cleanLeadFormat(newLead);
             const ag = agents.find(a => a.name === name);
-            if (ag) {
-                ag.lead = cleanedLead;
-                db.ref('agents').set(agents);
-                requests.forEach(r => { 
-                    if (r.agent.startsWith(name)) {
-                        r.lead = cleanedLead;
-                        db.ref('requests/' + r.id).update({ lead: cleanedLead });
-                    }
-                });
-                renderSupervisorDashboard();
-            }
+            if (!ag) return;
+
+            ag.lead = cleanedLead;
+            const updates = { agents: agents };
+            requests.forEach(r => {
+                if (r.agent && r.agent.startsWith(name)) {
+                    r.lead = cleanedLead;
+                    updates[`requests/${r.id}/lead`] = cleanedLead;
+                }
+            });
+
+            db.ref().update(updates).catch(error => {
+                alert('Failed to update agent lead: ' + error.message);
+            });
         }
 
         function renderRoster() {
             const tbody = document.getElementById('roster-tbody');
-            tbody.innerHTML = '';
-            agents.sort((a,b) => a.name.localeCompare(b.name)).forEach(ag => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td><b>${ag.name}</b></td>
-                        <td>
-                            <input type="text" value="${ag.emp || ''}" onchange="updateAgentEmp('${ag.name}', this.value)" style="padding: 4px; font-size:0.8rem; width: 90px;" placeholder="Emp No.">
-                        </td>
-                        <td>
-                            <select onchange="updateAgentLead('${ag.name}', this.value)" style="padding: 4px; font-size:0.8rem;">
-                                <option value="Edwin C." ${cleanLeadFormat(ag.lead)==='Edwin C.'?'selected':''}>Edwin C.</option>
-                                <option value="Frank M." ${cleanLeadFormat(ag.lead)==='Frank M.'?'selected':''}>Frank M.</option>
-                                <option value="Hazel M." ${cleanLeadFormat(ag.lead)==='Hazel M.'?'selected':''}>Hazel M.</option>
-                                <option value="Kyle B." ${cleanLeadFormat(ag.lead)==='Kyle B.'?'selected':''}>Kyle B.</option>
-                                <option value="Seth R." ${cleanLeadFormat(ag.lead)==='Seth R.'?'selected':''}>Seth R.</option>
-                                <option value="Arvy G." ${cleanLeadFormat(ag.lead)==='Arvy G.'?'selected':''}>Arvy G.</option>
-                                <option value="Glenn F." ${cleanLeadFormat(ag.lead)==='Glenn F.'?'selected':''}>Glenn F.</option>
-                            </select>
-                        </td>
-                        <td style="text-align: right;"><button class="btn btn-danger" style="padding: 0.2rem 0.5rem; font-size:0.75rem; width: auto;" onclick="deleteAgent('${ag.name}')">Delete</button></td>
-                    </tr>
-                `;
-            });
+            const leads = ["Edwin C.", "Frank M.", "Hazel M.", "Kyle B.", "Seth R.", "Arvy G.", "Glenn F."];
+            tbody.innerHTML = agents.slice().sort((a, b) => a.name.localeCompare(b.name)).map(ag => {
+                const lead = cleanLeadFormat(ag.lead);
+                const leadOptions = leads.map(option => `<option value="${option}" ${lead === option ? 'selected' : ''}>${option}</option>`).join('');
+                return `<tr>
+                    <td><b>${ag.name}</b></td>
+                    <td><input type="text" value="${ag.emp || ''}" onchange="updateAgentEmp('${ag.name}', this.value)" style="padding: 4px; font-size:0.8rem; width: 90px;" placeholder="Emp No."></td>
+                    <td><select onchange="updateAgentLead('${ag.name}', this.value)" style="padding: 4px; font-size:0.8rem;">${leadOptions}</select></td>
+                    <td style="text-align: right;"><button class="btn btn-danger" style="padding: 0.2rem 0.5rem; font-size:0.75rem; width: auto;" onclick="deleteAgent('${ag.name}')">Delete</button></td>
+                </tr>`;
+            }).join('');
         }
 
         function updateLeadAction(id, newStatus) {
             const noteInput = document.getElementById(`note_${id}`);
             const noteVal = noteInput ? noteInput.value : "";
+            
             db.ref('requests/' + id).update({
                 status: newStatus,
                 actionBy: currentSupervisorName,
                 note: noteVal
-            }).then(() => {
-                renderSupervisorDashboard();
             });
         }
 
@@ -1467,8 +1457,6 @@
             db.ref('requests/' + id).update({
                 slot: newSlotStr,
                 duration: computedDuration
-            }).then(() => {
-                renderSupervisorDashboard();
             }).catch(error => {
                 alert("Failed to update overtime request: " + error.message);
             });
@@ -1641,6 +1629,7 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
 
         function getFilteredRequestsForDashboard() {
@@ -1682,74 +1671,61 @@
 
         function renderSupervisorDashboard() {
             const queueContainer = document.getElementById('lead-queue-list');
-            queueContainer.innerHTML = '';
+            const metricsContainer = document.getElementById('metrics-grid-container');
             document.getElementById('select-all-checkbox').checked = false;
 
-            // Render Metric Cards per Lead (Only Edwin, Frank, Hazel, Kyle for active hour summaries)
             const leadsList = ["Edwin C.", "Frank M.", "Hazel M.", "Kyle B."];
-            const metricsContainer = document.getElementById('metrics-grid-container');
-            metricsContainer.innerHTML = '';
+            const approvedTotals = Object.fromEntries(leadsList.map(lead => [lead, 0]));
+            requests.forEach(r => {
+                if (r.status !== 'Approved') return;
+                const lead = cleanLeadFormat(r.lead);
+                if (Object.prototype.hasOwnProperty.call(approvedTotals, lead)) {
+                    approvedTotals[lead] += r.duration;
+                }
+            });
 
             let grandTotal = 0;
-            leadsList.forEach(l => {
-                const leadTotal = requests.filter(r => cleanLeadFormat(r.lead) === l && r.status === 'Approved').reduce((sum, r) => sum + r.duration, 0);
-                grandTotal += leadTotal;
-                metricsContainer.innerHTML += `
-                    <div class="metric-card">
-                        <h4>${l}</h4>
-                        <div class="value">${leadTotal} <span style="font-size:0.8rem; font-weight:normal; color:#64748b;">hrs</span></div>
-                    </div>
-                `;
+            const metricHtml = leadsList.map(lead => {
+                const total = approvedTotals[lead];
+                grandTotal += total;
+                return `<div class="metric-card"><h4>${lead}</h4><div class="value">${total} <span style="font-size:0.8rem; font-weight:normal; color:#64748b;">hrs</span></div></div>`;
             });
-            metricsContainer.innerHTML += `
-                <div class="metric-card" style="border-left-color: var(--success);">
-                    <h4>Total Approved</h4>
-                    <div class="value">${grandTotal} <span style="font-size:0.8rem; font-weight:normal; color:#64748b;">hrs</span></div>
-                </div>
-            `;
+            metricHtml.push(`<div class="metric-card" style="border-left-color: var(--success);"><h4>Total Approved</h4><div class="value">${grandTotal} <span style="font-size:0.8rem; font-weight:normal; color:#64748b;">hrs</span></div></div>`);
+            metricsContainer.innerHTML = metricHtml.join('');
 
-            let filteredReqs = getFilteredRequestsForDashboard();
-
+            const filteredReqs = getFilteredRequestsForDashboard();
             if (filteredReqs.length === 0) {
-                queueContainer.innerHTML = `<tr><td colspan="9" style="text-align:center; color:#64748b;">No agent submissions found</td></tr>`;
+                queueContainer.innerHTML = '<tr><td colspan="9" style="text-align:center; color:#64748b;">No agent submissions found</td></tr>';
                 return;
             }
 
-            filteredReqs.forEach(r => {
-                let badgeClass = r.status === 'Approved' ? 'badge-approved' : (r.status === 'Rejected' ? 'badge-rejected' : 'badge-pending');
-                let sigHtml = r.signatureData ? `<img src="${r.signatureData}" style="max-height:30px; border:1px solid #e2e8f0; background:#fff; border-radius:4px;" alt="Signature"/>` : `<span style="font-style:italic; color:#64748b;">No signature</span>`;
-                let auditHtml = r.actionBy ? `<br><small style="color:#0284c7; font-weight:600;">By: ${r.actionBy}</small>` : '';
-
-                queueContainer.innerHTML += `
-                    <tr>
-                        <td><input type="checkbox" class="row-checkbox" value="${r.id}"></td>
-                        <td><b>${r.agent}</b></td>
-                        <td><b>${cleanLeadFormat(r.lead)}</b></td>
-                        <td>${r.date}</td>
-                        <td>
-                            <span id="slot_display_${r.id}"><b>${r.slot}</b> (${r.duration} hrs)</span>
-                        </td>
-                        <td><small style="color: #64748b;">${r.submittedAt || 'N/A'}</small></td>
-                        <td>${sigHtml}</td>
-                        <td>
-                            <span class="badge ${badgeClass}">${r.status}</span>${auditHtml}<br>
-                            <input type="text" id="note_${r.id}" value="${r.note || ''}" placeholder="Type note..." style="margin-top:4px; font-size:0.8rem; padding:4px; border:1px solid var(--border-color); border-radius:4px; width:140px;">
-                        </td>
-                        <td style="text-align: center;">
-                            <div class="action-icon-group" style="justify-content: center;">
-                                <span class="action-icon approve" title="Approve" onclick="updateLeadAction(${r.id}, 'Approved')">✔️</span>
-                                <span class="action-icon reject" title="Reject" onclick="updateLeadAction(${r.id}, 'Rejected')">❌</span>
-                                <span class="action-icon edit" id="edit_btn_${r.id}" title="Edit OT Time Slot" onclick="enableEditRequest(${r.id})">✏️</span>
-                                <span class="action-icon delete" title="Delete" onclick="supervisorDeleteRequest(${r.id})">🗑️</span>
-                                <span class="action-icon email" title="Send Outlook Email" onclick="sendOutlookEmail(${r.id})">✉️</span>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            });
+            queueContainer.innerHTML = filteredReqs.map(r => {
+                const badgeClass = r.status === 'Approved' ? 'badge-approved' : (r.status === 'Rejected' ? 'badge-rejected' : 'badge-pending');
+                const sigHtml = r.signatureData
+                    ? `<img src="${r.signatureData}" loading="lazy" decoding="async" style="max-height:30px; border:1px solid #e2e8f0; background:#fff; border-radius:4px;" alt="Signature"/>`
+                    : '<span style="font-style:italic; color:#64748b;">No signature</span>';
+                const auditHtml = r.actionBy ? `<br><small style="color:#0284c7; font-weight:600;">By: ${r.actionBy}</small>` : '';
+                return `<tr>
+                    <td><input type="checkbox" class="row-checkbox" value="${r.id}"></td>
+                    <td><b>${r.agent}</b></td>
+                    <td><b>${cleanLeadFormat(r.lead)}</b></td>
+                    <td>${r.date}</td>
+                    <td><span id="slot_display_${r.id}"><b>${r.slot}</b> (${r.duration} hrs)</span></td>
+                    <td><small style="color: #64748b;">${r.submittedAt || 'N/A'}</small></td>
+                    <td>${sigHtml}</td>
+                    <td><span class="badge ${badgeClass}">${r.status}</span>${auditHtml}<br>
+                        <input type="text" id="note_${r.id}" value="${r.note || ''}" placeholder="Type note..." style="margin-top:4px; font-size:0.8rem; padding:4px; border:1px solid var(--border-color); border-radius:4px; width:140px;">
+                    </td>
+                    <td style="text-align: center;"><div class="action-icon-group" style="justify-content: center;">
+                        <span class="action-icon approve" title="Approve" onclick="updateLeadAction(${r.id}, 'Approved')">✔️</span>
+                        <span class="action-icon reject" title="Reject" onclick="updateLeadAction(${r.id}, 'Rejected')">❌</span>
+                        <span class="action-icon edit" id="edit_btn_${r.id}" title="Edit OT Time Slot" onclick="enableEditRequest(${r.id})">✏️</span>
+                        <span class="action-icon delete" title="Delete" onclick="supervisorDeleteRequest(${r.id})">🗑️</span>
+                        <span class="action-icon email" title="Send Outlook Email" onclick="sendOutlookEmail(${r.id})">✉️</span>
+                    </div></td>
+                </tr>`;
+            }).join('');
         }
-
-        // ================= KIOSK SCHEDULE TAB LOGIC =================
 
         function requestKioskUploadAccess() {
             document.getElementById('kiosk-password-input').value = '';
@@ -1824,7 +1800,6 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // Parse a Kiosk Schedule worksheet into blocks of { category, dates[7], agents:[{name, shifts:[{text,color}]}] }
         function parseKioskSheet(ws) {
             if (!ws || !ws['!ref']) return [];
             const range = XLSX.utils.decode_range(ws['!ref']);
@@ -1849,11 +1824,11 @@
                 }
 
                 if (valA && String(valA).trim().toLowerCase() === 'name') {
-                    continue; // day-name sub-header row, skip
+                    continue;
                 }
 
                 if (!valA) {
-                    continue; // blank spacer row
+                    continue;
                 }
 
                 if (currentCat) {
@@ -1876,7 +1851,6 @@
             return `${y}-${m}-${day}`;
         }
 
-        // Recognized fill colors from the source workbook mapped to status categories
         const KIOSK_COLOR_MAP = {
             '00B050': 'wfh',    // green
             'FFFF00': 'change', // yellow
@@ -1903,13 +1877,21 @@
         function populateKioskCategoryDropdown() {
             const select = document.getElementById('kiosk-category-filter');
             const currentVal = select.value;
-            select.innerHTML = '<option value="">-- All Groups --</option>';
-            if (kioskScheduleData && kioskScheduleData.categories) {
-                kioskScheduleData.categories.forEach(cat => {
-                    select.innerHTML += `<option value="${cat.category}">${cat.category}</option>`;
-                });
-            }
+            const categories = kioskScheduleData && Array.isArray(kioskScheduleData.categories)
+                ? kioskScheduleData.categories
+                : [];
+            select.innerHTML = '<option value="">-- All Groups --</option>' + categories.map(cat =>
+                `<option value="${cat.category}">${cat.category}</option>`
+            ).join('');
             select.value = currentVal;
+        }
+
+        function scheduleKioskScheduleRender() {
+            if (kioskRenderTimer) clearTimeout(kioskRenderTimer);
+            kioskRenderTimer = setTimeout(() => {
+                kioskRenderTimer = null;
+                renderKioskSchedule();
+            }, 120);
         }
 
         function kioskDayLabel(isoDate) {
@@ -1947,7 +1929,7 @@
                 </tr>
             `;
 
-            let rowsHtml = '';
+            const rowHtmlParts = [];
             let matchCount = 0;
 
             kioskScheduleData.categories.forEach(cat => {
@@ -1960,13 +1942,13 @@
                     const workingAllWeek = ag.shifts.length === 7 && ag.shifts.every(s => s.color !== 'off');
                     const streakBadge = workingAllWeek ? `<span class="kiosk-streak-badge">⚠ 7 days straight</span>` : '';
 
-                    rowsHtml += `
+                    rowHtmlParts.push(`
                         <tr>
                             <td>${cat.category}</td>
                             <td><b>${ag.name}</b>${streakBadge}</td>
                             ${ag.shifts.map(s => `<td><span class="kiosk-cell ${s.color}">${s.text || 'OFF'}</span></td>`).join('')}
                         </tr>
-                    `;
+                    `);
                 });
             });
 
@@ -1976,7 +1958,7 @@
                 return;
             }
 
-            tbody.innerHTML = rowsHtml;
+            tbody.innerHTML = rowHtmlParts.join('');
         }
 
         function renderKioskHistory() {
@@ -1985,7 +1967,7 @@
                 container.innerHTML = `<div class="kiosk-upload-history-item" style="text-align:center; color:#64748b;">No uploads yet.</div>`;
                 return;
             }
-            const sorted = [...kioskHistoryData].reverse(); // Firebase push order is chronological; show newest first
+            const sorted = [...kioskHistoryData].reverse();
             container.innerHTML = sorted.map(h => `
                 <div class="kiosk-upload-history-item">
                     📤 <b>${h.fileName || 'schedule.xlsx'}</b> uploaded by <b>${h.uploadedBy || 'Unknown'}</b> on ${h.uploadedAt || 'N/A'}
