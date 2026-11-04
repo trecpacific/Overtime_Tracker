@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Petro Overtime Event Tracker - Welcome</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+            --border-color: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .welcome-card {
+            background: var(--card-bg);
+            padding: 3rem 2.5rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            text-align: center;
+            max-width: 440px;
+            width: 100%;
+            border: 1px solid var(--border-color);
+        }
+
+        h1 {
+            color: var(--primary-dark);
+            margin-top: 0;
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+        }
+
+        p {
+            color: #64748b;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 2rem;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .portal-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.85rem 1.5rem;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+        }
+
+        .portal-btn:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        .portal-btn.supervisor {
+            background-color: #1e293b;
+            box-shadow: 0 4px 6px -1px rgba(30, 41, 59, 0.2);
+        }
+        .portal-btn.supervisor:hover {
+            background-color: #0f172a;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="welcome-card">
+        <h1>🛡️ Overtime Event Tracker</h1>
+        <p>Pass your overtime requests, track active submissions, or manage team schedules efficiently.</p>
+        
+        <div class="button-group">
+            <a href="portal.html?tab=agent" class="portal-btn">👤 Agent Portal</a>
+            <a href="portal.html?tab=supervisor" class="portal-btn supervisor">👔 Supervisor Portal</a>
+        </div>
+    </div>
+
+</body>
+</html>
