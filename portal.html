@@ -826,7 +826,7 @@
             fill('filter-lead', '<option value="">-- All Leads --</option>' + short);
         }
 
-        db.ref('supervisors').on('value', (snapshot) => {
+        db.ref('supervisor').on('value', (snapshot) => {
             const data = snapshot.val();
             supervisors = data ? Object.values(data).filter(x => x && x.name).map(x => ({
                 name: String(x.name), emp: x.emp ? String(x.emp) : "", metrics: !!x.metrics
